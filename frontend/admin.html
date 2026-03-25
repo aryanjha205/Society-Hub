@@ -66,13 +66,10 @@
             <!-- Quick Stats Row (Live Data Only) -->
             <div class="grid grid-cols-2 gap-3">
                 <div class="glass-card p-4 relative overflow-hidden group">
-                    <div class="absolute -right-2 -bottom-2 w-16 h-16 bg-emerald-500 opacity-10 rounded-full group-hover:scale-110 transition"></div>
                     <p class="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Collection</p>
                     <h3 class="text-2xl font-bold text-dark" id="statCollected">₹0</h3>
                 </div>
-                <!-- Stat 2 -->
                 <div class="glass-card p-4 relative overflow-hidden group">
-                    <div class="absolute -right-2 -bottom-2 w-16 h-16 bg-red-500 opacity-10 rounded-full group-hover:scale-110 transition"></div>
                     <p class="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Pending Complaints</p>
                     <h3 class="text-2xl font-bold text-dark" id="statComplaints">0</h3>
                 </div>
@@ -82,7 +79,7 @@
             <div>
                 <h2 class="text-sm font-bold text-slate-400 uppercase tracking-wider mb-3">Manage Modules</h2>
                 <div class="grid grid-cols-1 gap-3">
-                    <div class="glass-card p-4 flex items-center justify-between cursor-pointer" onclick="toggleSection('noticesManager')">
+                    <div class="glass-card p-4 flex items-center justify-between cursor-pointer" onclick="loadNotices()">
                         <div class="flex items-center gap-3">
                             <div class="w-10 h-10 rounded-xl bg-indigo-50 text-primary flex items-center justify-center"><i class="fa-solid fa-bullhorn text-lg"></i></div>
                             <div>
@@ -97,16 +94,6 @@
                             <div class="w-10 h-10 rounded-xl bg-red-50 text-red-500 flex items-center justify-center"><i class="fa-solid fa-clipboard-list text-lg"></i></div>
                             <div>
                                 <h3 class="text-sm font-bold text-dark">Complaints</h3>
-                            </div>
-                        </div>
-                        <i class="fa-solid fa-chevron-right text-slate-300"></i>
-                    </div>
-
-                    <div class="glass-card p-4 flex items-center justify-between cursor-pointer" onclick="toggleSection('financeManager')">
-                        <div class="flex items-center gap-3">
-                            <div class="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-500 flex items-center justify-center"><i class="fa-solid fa-money-check-dollar text-lg"></i></div>
-                            <div>
-                                <h3 class="text-sm font-bold text-dark">Finance Module</h3>
                             </div>
                         </div>
                         <i class="fa-solid fa-chevron-right text-slate-300"></i>
@@ -146,7 +133,6 @@
             const btn = document.querySelector('#loginView button');
             const originalText = btn.innerText;
             btn.innerText = "Verifying...";
-            
             try {
                 const res = await fetch(`${API_URL}/auth/admin-login`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ pin }) });
                 if(res.ok) {
@@ -160,7 +146,7 @@
                     btn.innerText = originalText;
                 }
             } catch (err) {
-                document.getElementById('errorMsg').innerText = "Live Verification Failed (Server Offline)";
+                document.getElementById('errorMsg').innerText = "Verification Failed (Server Offline)";
                 document.getElementById('errorMsg').classList.remove('hidden');
                 btn.innerText = originalText;
             }
@@ -188,7 +174,6 @@
                     const sel = document.getElementById('adminSocietySelect');
                     sel.innerHTML = '<option value="">Aggregate All (Global)</option>';
                     let htmlList = '';
-                    
                     societies.forEach(s => {
                         sel.innerHTML += `<option value="${s._id}">${s.name} (Code: ${s.code})</option>`;
                         htmlList += `
@@ -198,7 +183,6 @@
                             </div>
                         `;
                     });
-                    
                     if(societies.length > 0) {
                         document.getElementById('societiesListPanel').classList.remove('hidden');
                         document.getElementById('societiesListContent').innerHTML = htmlList;
@@ -216,9 +200,6 @@
                     const data = await res.json();
                     document.getElementById('statCollected').innerText = '₹' + (data.dues_collected || 0).toLocaleString();
                     document.getElementById('statComplaints').innerText = data.pending_complaints || 0;
-                } else {
-                    document.getElementById('statCollected').innerText = '₹0';
-                    document.getElementById('statComplaints').innerText = '0';
                 }
             } catch(e) {}
         }
@@ -229,23 +210,7 @@
             const content = document.getElementById('panelContent');
             panel.classList.remove('hidden');
 
-            if(section === 'noticesManager') {
-                title.innerText = "Post a New Notice";
-                const sid = document.getElementById('adminSocietySelect').value;
-                if(!sid) {
-                    content.innerHTML = `<p class="text-xs text-red-500">Please select a specific society from the top filter to post a notice.</p>`;
-                    return;
-                }
-                content.innerHTML = `
-                    <form onsubmit="postNotice(event)" class="space-y-3">
-                        <input id="nTitle" type="text" placeholder="Notice Title" required class="w-full text-sm bg-slate-50 border border-slate-200 rounded-lg px-3 py-2">
-                        <textarea id="nContent" placeholder="Notice Description..." rows="3" required class="w-full text-sm bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 resize-none"></textarea>
-                        <select id="nCat" class="w-full text-sm bg-slate-50 border border-slate-200 rounded-lg px-3 py-2">
-                            <option>General</option><option>Important</option><option>Event</option>
-                        </select>
-                        <button type="submit" class="w-full bg-primary text-white font-bold py-2 rounded-lg text-sm hover:bg-indigo-700 transition">Broadcast Notice</button>
-                    </form>`;
-            } else if (section === 'createSocietyManager') {
+            if (section === 'createSocietyManager') {
                 title.innerText = "Register New Society";
                 content.innerHTML = `
                     <form onsubmit="postSociety(event)" class="space-y-3">
@@ -253,10 +218,110 @@
                         <input id="socAddr" type="text" placeholder="Full Address" required class="w-full text-sm bg-slate-50 border border-slate-200 rounded-lg px-3 py-2">
                         <button type="submit" class="w-full bg-indigo-600 text-white font-bold py-2 rounded-lg text-sm hover:bg-indigo-700 transition">Generate Society & Code</button>
                     </form>`;
-            } else if (section === 'financeManager') {
-                title.innerText = "Add Bulk Maintenance Due";
-                content.innerHTML = `<p class="text-xs text-slate-500">Select a society above and integrate bulk fee logic.</p>`;
             }
+        }
+        
+        async function loadNotices() {
+            const panel = document.getElementById('dynamicPanel');
+            const content = document.getElementById('panelContent');
+            panel.classList.remove('hidden');
+            document.getElementById('panelTitle').innerText = "Manage Notices & Alerts";
+            
+            const sid = document.getElementById('adminSocietySelect').value;
+            content.innerHTML = `<div class="text-center py-4"><i class="fa-solid fa-spinner fa-spin text-primary"></i></div>`;
+
+            try {
+                const res = await fetch(`${API_URL}/notices`, {headers: getAuthHeaders()});
+                if(res.ok) {
+                    const allNotices = await res.json();
+                    const data = sid ? allNotices.filter(n => n.societyId === sid) : allNotices;
+                    
+                    let html = `
+                    <button onclick="showNoticeForm()" class="w-full mb-4 bg-indigo-50 border border-indigo-200 text-indigo-600 text-xs font-bold py-2 rounded-lg hover:bg-indigo-100 transition">+ Post Notice Here</button>
+                    <div id="noticeFormContainer" class="hidden mb-4 p-4 border border-slate-200 rounded-xl bg-slate-50"></div>
+                    <div class="space-y-3">
+                    `;
+                    
+                    if(data.length === 0) html += `<p class="text-xs text-slate-500 text-center py-4">No active notices.</p>`;
+                    data.forEach(n => {
+                        html += `
+                        <div class="bg-slate-50 p-3 rounded-xl border border-slate-200" id="notice-${n._id}">
+                            <div class="flex justify-between items-start mb-2">
+                                <span class="text-[10px] bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded font-bold">${n.category}</span>
+                                <div class="flex gap-2">
+                                    <button onclick="editNotice('${n._id}', \`${n.title}\`, \`${n.content}\`, '${n.category}')" class="text-[10px] text-blue-500 font-bold bg-blue-50 px-2 py-1 rounded">Update</button>
+                                    <button onclick="deleteNotice('${n._id}')" class="text-[10px] text-red-500 font-bold bg-red-50 px-2 py-1 rounded">Delete</button>
+                                </div>
+                            </div>
+                            <h4 class="text-sm font-bold text-dark mt-1">${n.title}</h4>
+                            <p class="text-xs text-slate-600 mt-1">${n.content}</p>
+                        </div>`;
+                    });
+                    html += `</div>`;
+                    content.innerHTML = html;
+                } else {
+                    content.innerHTML = `<p class="text-xs text-red-500 text-center py-4">Failed to fetch notices.</p>`;
+                }
+            } catch (err) {
+                 content.innerHTML = `<p class="text-xs text-red-500 text-center py-4">Network error.</p>`;
+            }
+        }
+        
+        function showNoticeForm(id = null, title = '', contentTxt = '', category = 'General') {
+            const sid = document.getElementById('adminSocietySelect').value;
+            if(!sid) { alert("Please select a specific Society in the top filter to post a notice!"); return; }
+            
+            const ctn = document.getElementById('noticeFormContainer');
+            ctn.classList.remove('hidden');
+            const btnText = id ? 'Update Notice' : 'Broadcast Notice';
+            
+            ctn.innerHTML = `
+                <form onsubmit="submitNotice(event, '${id || ''}')" class="space-y-3">
+                    <input id="nTitle" type="text" placeholder="Notice Title" value="${title}" required class="w-full text-sm bg-white border border-slate-200 rounded-lg px-3 py-2">
+                    <textarea id="nContent" placeholder="Notice Description..." rows="3" required class="w-full text-sm bg-white border border-slate-200 rounded-lg px-3 py-2 resize-none">${contentTxt}</textarea>
+                    <select id="nCat" class="w-full text-sm bg-white border border-slate-200 rounded-lg px-3 py-2">
+                        <option ${category==='General'?'selected':''}>General</option>
+                        <option ${category==='Important'?'selected':''}>Important</option>
+                        <option ${category==='Event'?'selected':''}>Event</option>
+                    </select>
+                    <div class="flex gap-2">
+                        <button type="submit" class="flex-1 bg-primary text-white font-bold py-2 rounded-lg text-sm transition">${btnText}</button>
+                        <button type="button" onclick="document.getElementById('noticeFormContainer').classList.add('hidden')" class="bg-slate-200 text-slate-700 font-bold py-2 px-4 rounded-lg text-sm">Cancel</button>
+                    </div>
+                </form>
+            `;
+        }
+
+        function editNotice(id, title, content, cat) {
+            showNoticeForm(id, title, content, cat);
+        }
+
+        async function deleteNotice(id) {
+            if(!confirm("Are you sure you want to delete this notice?")) return;
+            try {
+                await fetch(`${API_URL}/notices/${id}`, { method: 'DELETE', headers: getAuthHeaders() });
+                loadNotices(); // Refresh
+            } catch(e) {}
+        }
+        
+        async function submitNotice(e, id) {
+            e.preventDefault();
+            const sid = document.getElementById('adminSocietySelect').value;
+            const payload = {
+                societyId: sid,
+                title: document.getElementById('nTitle').value,
+                content: document.getElementById('nContent').value,
+                category: document.getElementById('nCat').value
+            };
+            
+            try {
+                if(id) {
+                    await fetch(`${API_URL}/notices/${id}`, { method: 'PUT', headers: getAuthHeaders(), body: JSON.stringify(payload) });
+                } else {
+                    await fetch(`${API_URL}/notices`, { method: 'POST', headers: getAuthHeaders(), body: JSON.stringify(payload) });
+                }
+                loadNotices(); // Refresh to show new set
+            } catch(e) {}
         }
 
         async function loadComplaints() {
@@ -278,39 +343,27 @@
                     data.forEach(c => {
                         const style = c.status === 'Resolved' ? 'text-emerald-500' : 'text-red-500';
                         html += `
-                        <div class="bg-slate-50 p-3 rounded-xl border border-slate-100 flex justify-between items-start">
+                        <div class="bg-slate-50 p-3 rounded-xl border border-slate-100 flex justify-between items-start mb-2">
                             <div class="flex-1">
                                 <span class="text-[10px] bg-slate-200 px-2 py-0.5 rounded text-slate-600 font-bold inline-block mb-1">${c.category}</span>
                                 <p class="text-xs text-dark mt-1">${c.description}</p>
                             </div>
-                            <div class="text-right ml-2">
+                            <div class="text-right ml-2 flex flex-col items-end gap-2">
                                 <span class="text-[10px] font-bold ${style} block">${c.status}</span>
+                                <button onclick="updateComplaint('${c._id}')" class="text-[10px] bg-slate-200 px-2 py-1 rounded">Mark Resolved</button>
                             </div>
                         </div>`;
                     });
-                    content.innerHTML = html;
-                } else {
-                    content.innerHTML = `<p class="text-xs text-red-500 text-center py-4">Failed to fetch live complaints.</p>`;
+                    content.innerHTML = `<div class="space-y-2">${html}</div>`;
                 }
-            } catch (err) {
-                 content.innerHTML = `<p class="text-xs text-red-500 text-center py-4">Backend communication failed.</p>`;
-            }
+            } catch (err) {}
         }
-
-        async function postNotice(e) {
-            e.preventDefault();
-            const btn = e.target.querySelector('button');
-            const og = btn.innerText;
-            const sid = document.getElementById('adminSocietySelect').value;
-            btn.innerText = "Sending...";
+        
+        async function updateComplaint(id) {
             try {
-                await fetch(`${API_URL}/notices`, {
-                    method: 'POST', headers: getAuthHeaders(),
-                    body: JSON.stringify({ societyId: sid, title: document.getElementById('nTitle').value, content: document.getElementById('nContent').value, category: document.getElementById('nCat').value})
-                });
-                btn.innerHTML = "<i class='fa-solid fa-check'></i> Sent";
-                setTimeout(() => { document.getElementById('dynamicPanel').classList.add('hidden'); fetchAdminAnalytics(); }, 1000);
-            } catch(e) { console.log(e); btn.innerText = og; }
+                await fetch(`${API_URL}/complaints/${id}/status`, { method: 'PUT', headers: getAuthHeaders(), body: JSON.stringify({status: 'Resolved'}) });
+                loadComplaints();
+            } catch(e){}
         }
 
         async function postSociety(e) {
@@ -326,10 +379,7 @@
                 if(res.ok) {
                     const data = await res.json();
                     btn.innerHTML = `<i class='fa-solid fa-check'></i> Created Code: ${data.code}`;
-                    setTimeout(() => { 
-                        document.getElementById('dynamicPanel').classList.add('hidden'); 
-                        loadSocieties(); 
-                    }, 2000);
+                    setTimeout(() => { document.getElementById('dynamicPanel').classList.add('hidden'); loadSocieties(); }, 2000);
                 } else { btn.innerText = "Failed"; }
             } catch(e) { console.log(e); btn.innerText = og; }
         }

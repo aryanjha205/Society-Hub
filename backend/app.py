@@ -117,7 +117,6 @@ def verify_otp():
     
     record = otps_col.find_one({"email": email, "otp": otp})
     if not record: return jsonify({"error": "Invalid or expired OTP"}), 401
-    otps_col.delete_one({"_id": record["_id"]})
     
     user = users_col.find_one({"email": email})
     if not user:
@@ -140,6 +139,9 @@ def verify_otp():
         }
         res = users_col.insert_one(new_user)
         user = users_col.find_one({"_id": res.inserted_id})
+
+    # Delete OTP only after full verification and user validation is successful
+    otps_col.delete_one({"_id": record["_id"]})
         
     token = jwt.encode(
         {'user_id': str(user['_id']), 'role': user.get('role', 'resident'), 'societyId': str(user.get('societyId', ''))}, 
@@ -208,6 +210,23 @@ def add_notice():
     }
     notices_col.insert_one(notice)
     return jsonify({"message": "Notice added"}), 201
+
+@app.route('/api/notices/<n_id>', methods=['PUT'])
+@admin_required
+def update_notice(n_id):
+    data = request.json
+    notices_col.update_one({"_id": ObjectId(n_id)}, {"$set": {
+        "title": data.get("title"),
+        "content": data.get("content"),
+        "category": data.get("category", "General")
+    }})
+    return jsonify({"message": "Notice updated"})
+
+@app.route('/api/notices/<n_id>', methods=['DELETE'])
+@admin_required
+def delete_notice(n_id):
+    notices_col.delete_one({"_id": ObjectId(n_id)})
+    return jsonify({"message": "Notice deleted"})
 
 @app.route('/api/complaints', methods=['GET'])
 @token_required

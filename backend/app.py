@@ -11,7 +11,7 @@ import os
 from functools import wraps
 from dotenv import load_dotenv
 
-load_dotenv()
+load_dotenv(os.path.join(os.path.dirname(__file__), '..', '.env'))
 
 app = Flask(__name__)
 CORS(app)
@@ -144,7 +144,7 @@ def verify_otp():
     otps_col.delete_one({"_id": record["_id"]})
         
     token = jwt.encode(
-        {'user_id': str(user['_id']), 'role': user.get('role', 'resident'), 'societyId': str(user.get('societyId', ''))}, 
+        {'user_id': str(user['_id']), 'name': user.get('name', ''), 'role': user.get('role', 'resident'), 'societyId': str(user.get('societyId', ''))}, 
         app.config['SECRET_KEY'], algorithm='HS256'
     )
     return jsonify({"token": token, "user": format_doc(user)})
@@ -180,6 +180,20 @@ def create_society():
     }
     societies_col.insert_one(society)
     return jsonify({"message": "Society created", "code": code}), 201
+
+# -------------- USERS DIRECTORY MODULE --------------
+@app.route('/api/users', methods=['GET'])
+@token_required
+def get_users():
+    society_id = request.user_data.get('societyId')
+    if request.user_data.get('role') == 'admin':
+        society_filter = request.args.get('societyId')
+        query = {"societyId": society_filter} if society_filter else {}
+    else:
+        query = {"societyId": society_id}
+    
+    users = list(users_col.find(query).sort("joinedAt", 1))
+    return jsonify([format_doc(u) for u in users])
 
 # -------------- USER/RESIDENT ENDPOINTS --------------
 @app.route('/api/notices', methods=['GET'])
@@ -246,11 +260,14 @@ def get_complaints():
 def add_complaint():
     data = request.json
     society_id = request.user_data.get('societyId')
+    user_id = request.user_data.get('user_id')
+    user_name = request.user_data.get('name', 'Resident')
     if not society_id: return jsonify({"error": "User does not belong to a society"}), 400
     
     complaint = {
         "societyId": society_id,
-        "userId": request.user_data.get('user_id'),
+        "userId": user_id,
+        "userName": user_name,
         "category": data.get("category"),
         "description": data.get("description"),
         "status": "Pending",
@@ -270,9 +287,51 @@ def update_complaint_status(c_id):
 @token_required
 def get_dues():
     society_id = request.user_data.get('societyId')
-    query = {"societyId": society_id} if society_id else {}
+    user_id = request.user_data.get('user_id')
+    
+    if request.user_data.get('role') == 'admin':
+        society_filter = request.args.get('societyId')
+        query = {"societyId": society_filter} if society_filter else {}
+    else:
+        query = {"userId": user_id, "societyId": society_id}
+        
     dues = list(payments_col.find(query).sort("dueDate", 1))
     return jsonify([format_doc(d) for d in dues])
+
+@app.route('/api/dues/bulk', methods=['POST'])
+@admin_required
+def add_bulk_dues():
+    data = request.json
+    society_id = data.get('societyId')
+    total_amount = float(data.get('totalAmount', 0))
+    due_date = data.get('dueDate')
+    
+    if not society_id or total_amount <= 0 or not due_date:
+        return jsonify({"error": "Missing parameters"}), 400
+        
+    residents = list(users_col.find({"societyId": society_id, "role": "resident"}))
+    if not residents:
+        return jsonify({"error": "No residents found in this society to split among"}), 400
+        
+    split_amt = round(total_amount / len(residents), 2)
+    due_records = []
+    
+    for r in residents:
+        due_records.append({
+            "societyId": society_id,
+            "userId": str(r["_id"]),
+            "userName": r.get("name", "Resident"),
+            "amount": split_amt,
+            "type": "Maintenance",
+            "status": "Pending",
+            "dueDate": due_date,
+            "createdAt": datetime.utcnow().isoformat()
+        })
+        
+    if due_records:
+        payments_col.insert_many(due_records)
+        
+    return jsonify({"message": f"Successfully generated dues of ₹{split_amt} for {len(residents)} residents."}), 201
 
 @app.route('/api/analytics', methods=['GET'])
 @token_required

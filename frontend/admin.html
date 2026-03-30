@@ -4,25 +4,56 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Admin Dashboard - Society Hub</title>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
             theme: {
                 extend: {
-                    fontFamily: { sans: ['Outfit', 'sans-serif'] },
-                    colors: { primary: '#4F46E5', secondary: '#10B981', accent: '#F59E0B', dark: '#1E293B', light: '#F8FAFC' }
+                    fontFamily: { sans: ['Manrope', 'sans-serif'], display: ['Sora', 'sans-serif'] },
+                    colors: { primary: '#155EEF', secondary: '#0E9384', accent: '#F79009', dark: '#101828', light: '#F8FAFC' }
                 }
             }
         }
     </script>
     <style>
-        body { background-color: #F8FAFC; -webkit-tap-highlight-color: transparent; }
-        .glass-card { background: rgba(255, 255, 255, 0.95); border: 1px solid rgba(255,255,255,0.5); box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05); border-radius: 16px; }
-        .glass-header { background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(12px); border-bottom: 1px solid rgba(255,255,255,0.3); position: sticky; top: 0; z-index: 50; }
+        :root {
+            --panel: rgba(255, 255, 255, 0.9);
+            --border: rgba(148, 163, 184, 0.2);
+            --shadow: 0 24px 60px -34px rgba(15, 23, 42, 0.34);
+        }
+        body {
+            background:
+                radial-gradient(circle at 10% 5%, rgba(21, 94, 239, 0.08), transparent 24%),
+                radial-gradient(circle at 95% 18%, rgba(14, 147, 132, 0.08), transparent 22%),
+                linear-gradient(180deg, #eef4fb 0%, #f8fafc 100%);
+            -webkit-tap-highlight-color: transparent;
+        }
+        .glass-card { background: var(--panel); border: 1px solid var(--border); box-shadow: var(--shadow); border-radius: 24px; backdrop-filter: blur(18px); }
+        .glass-header { background: rgba(243, 246, 251, 0.82); backdrop-filter: blur(18px); border-bottom: 1px solid rgba(148, 163, 184, 0.18); position: sticky; top: 0; z-index: 50; }
         #adminView { display: none; }
         #loginView { display: flex; }
+        .admin-hero {
+            background:
+                radial-gradient(circle at top left, rgba(255,255,255,0.16), transparent 30%),
+                linear-gradient(135deg, #0f172a 0%, #12213d 52%, #155eef 100%);
+            border-radius: 30px;
+            color: white;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 28px 60px -30px rgba(15, 23, 42, 0.5);
+        }
+        .admin-hero::after {
+            content: "";
+            position: absolute;
+            width: 200px;
+            height: 200px;
+            right: -70px;
+            top: -70px;
+            background: rgba(255,255,255,0.10);
+            border-radius: 999px;
+        }
     </style>
 </head>
 <body class="text-slate-800 antialiased h-screen flex flex-col">
@@ -37,22 +68,37 @@
         </div>
 
         <div class="w-full max-w-sm relative group">
-            <div class="absolute -inset-1 bg-gradient-to-r from-indigo-500 to-slate-500 rounded-3xl blur opacity-20 group-hover:opacity-40 transition duration-1000"></div>
+            <div class="absolute -inset-1 bg-gradient-to-r from-sky-500 to-cyan-400 rounded-3xl blur opacity-20 group-hover:opacity-40 transition duration-1000"></div>
             
             <div class="glass-card relative bg-white/95 backdrop-blur-3xl border border-white/20 p-8 pt-12 flex flex-col items-center shadow-2xl rounded-[2.5rem]">
                 <!-- Floating Security Icon -->
-                <div class="absolute -top-10 left-1/2 -translate-x-1/2 w-20 h-20 rounded-3xl bg-gradient-to-br from-indigo-500 to-slate-800 shadow-2xl flex items-center justify-center text-white text-4xl transform rotate-6 hover:rotate-0 transition-transform duration-500">
+                <div class="absolute -top-10 left-1/2 -translate-x-1/2 w-20 h-20 rounded-3xl bg-gradient-to-br from-slate-900 to-primary shadow-2xl flex items-center justify-center text-white text-4xl transform rotate-6 hover:rotate-0 transition-transform duration-500">
                     <i class="fa-solid fa-user-shield"></i>
                 </div>
                 
                 <div class="text-center mb-6">
-                    <h2 class="text-3xl font-black text-slate-900 tracking-tight leading-tight">Admin Portal</h2>
+                    <p class="text-[10px] font-extrabold uppercase tracking-[0.35em] text-primary/70 mb-2">Management Access</p>
+                    <h2 class="text-3xl font-black font-display text-slate-900 tracking-tight leading-tight">Admin Portal</h2>
                     <div class="inline-flex items-center gap-1.5 bg-amber-50 text-amber-700 text-[9px] font-bold px-3 py-1 rounded-full uppercase tracking-wider border border-amber-100 mt-2">
                         <i class="fa-solid fa-lock text-[8px]"></i> Encrypted Session
                     </div>
                 </div>
                 
-                <p class="text-[11px] text-slate-500 mb-8 text-center leading-relaxed px-4 font-medium">Authorized access specifically for Society Management. Control operations, finance, and community logs from this dashboard.</p>
+                <p class="text-[11px] text-slate-500 mb-6 text-center leading-relaxed px-4 font-medium">A cleaner command center for finance, notices, complaints, visitors, staff, and society-level operations.</p>
+                <div class="grid grid-cols-3 gap-2 w-full mb-8">
+                    <div class="rounded-2xl bg-slate-50 border border-slate-200 px-2 py-3 text-center">
+                        <p class="text-[9px] font-extrabold uppercase tracking-[0.18em] text-slate-400">Ops</p>
+                        <p class="text-[10px] font-bold text-slate-700 mt-1">Societies</p>
+                    </div>
+                    <div class="rounded-2xl bg-slate-50 border border-slate-200 px-2 py-3 text-center">
+                        <p class="text-[9px] font-extrabold uppercase tracking-[0.18em] text-slate-400">Finance</p>
+                        <p class="text-[10px] font-bold text-slate-700 mt-1">Collections</p>
+                    </div>
+                    <div class="rounded-2xl bg-slate-50 border border-slate-200 px-2 py-3 text-center">
+                        <p class="text-[9px] font-extrabold uppercase tracking-[0.18em] text-slate-400">Safety</p>
+                        <p class="text-[10px] font-bold text-slate-700 mt-1">SOS Feed</p>
+                    </div>
+                </div>
                 
                 <div class="w-full space-y-4">
                     <div class="relative group/input">
@@ -113,6 +159,32 @@
             </header>
             
             <main class="flex-1 px-5 py-6 space-y-6 max-w-3xl mx-auto w-full">
+                <section class="admin-hero p-6">
+                    <div class="relative z-10 flex items-start justify-between gap-4">
+                        <div class="max-w-[75%]">
+                            <p class="text-[10px] font-extrabold uppercase tracking-[0.35em] text-white/60">Society Oversight</p>
+                            <h2 class="text-2xl font-display font-extrabold leading-tight mt-2">Run operations from one executive dashboard.</h2>
+                            <p class="text-[12px] text-slate-200 mt-3 leading-relaxed">Monitor collections, complaints, notices, gate activity, bookings, and emergency alerts without jumping between tools.</p>
+                        </div>
+                        <div class="w-14 h-14 rounded-[22px] bg-white/10 border border-white/10 flex items-center justify-center text-2xl shrink-0">
+                            <i class="fa-solid fa-chart-pie"></i>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-3 gap-3 mt-5 relative z-10">
+                        <div class="rounded-2xl bg-white/10 border border-white/10 px-3 py-3">
+                            <p class="text-[9px] uppercase tracking-[0.24em] text-white/55 font-extrabold">Scope</p>
+                            <p class="text-sm font-bold mt-1">Multi-society</p>
+                        </div>
+                        <div class="rounded-2xl bg-white/10 border border-white/10 px-3 py-3">
+                            <p class="text-[9px] uppercase tracking-[0.24em] text-white/55 font-extrabold">Tracking</p>
+                            <p class="text-sm font-bold mt-1">Live activity</p>
+                        </div>
+                        <div class="rounded-2xl bg-white/10 border border-white/10 px-3 py-3">
+                            <p class="text-[9px] uppercase tracking-[0.24em] text-white/55 font-extrabold">Control</p>
+                            <p class="text-sm font-bold mt-1">Fast actions</p>
+                        </div>
+                    </div>
+                </section>
                 
                 <!-- Global Society Selector -->
                 <div class="glass-card p-5 border border-indigo-100 shadow-sm relative overflow-hidden">

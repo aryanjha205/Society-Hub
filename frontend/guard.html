@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Gate Security - Society Hub</title>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Manrope', 'sans-serif'], display: ['Sora', 'sans-serif'] },
+                    colors: { primary: '#155EEF', dark: '#101828', secondary: '#0E9384' }
+                }
+            }
+        }
+    </script>
+    <style>
+        :root {
+            --panel: rgba(255,255,255,0.92);
+            --border: rgba(148,163,184,0.22);
+            --shadow: 0 28px 60px -34px rgba(15,23,42,0.5);
+        }
+        body {
+            background:
+                radial-gradient(circle at 10% 10%, rgba(21,94,239,0.16), transparent 24%),
+                radial-gradient(circle at 90% 85%, rgba(14,147,132,0.14), transparent 26%),
+                linear-gradient(180deg, #081120 0%, #0b1730 100%);
+            -webkit-tap-highlight-color: transparent;
+        }
+        .glass-card {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 32px;
+            box-shadow: var(--shadow);
+            backdrop-filter: blur(18px);
+        }
+        .portal-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.55rem;
+            padding: 0.85rem 1rem;
+            border-radius: 999px;
+            border: 1px solid rgba(255,255,255,0.08);
+            background: rgba(255,255,255,0.05);
+            color: rgba(226,232,240,0.88);
+            font-size: 11px;
+            font-weight: 800;
+            transition: 0.2s ease;
+        }
+        .portal-link:hover { color: white; background: rgba(255,255,255,0.09); }
+    </style>
+</head>
+<body class="text-slate-800 antialiased h-screen flex flex-col items-center justify-center px-6 bg-[#020617] overflow-hidden">
+    <!-- Unified Premium Background -->
+    <div class="absolute inset-0 overflow-hidden pointer-events-none">
+        <div class="absolute -top-[10%] -left-[10%] w-[60%] h-[60%] bg-indigo-600/20 rounded-full blur-[120px] animate-pulse"></div>
+        <div class="absolute -bottom-[10%] -right-[10%] w-[60%] h-[60%] bg-purple-600/20 rounded-full blur-[120px] animate-pulse" style="animation-delay: 2s;"></div>
+        <div class="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-[0.03]"></div>
+    </div>
+
+    <!-- In-App Notification (Toast) -->
+    <div id="toastNotification" class="fixed top-5 left-1/2 -translate-x-1/2 bg-slate-800 border border-slate-700 text-white px-5 py-3.5 rounded-2xl shadow-2xl z-[150] flex items-center gap-3 transition-all duration-300 translate-y-[-150%] opacity-0 w-[90%] max-w-sm pointer-events-none">
+        <i id="toastIcon" class="fa-solid fa-bell text-2xl text-primary drop-shadow-lg"></i>
+        <div class="flex-1">
+            <h4 id="toastTitle" class="text-[14px] font-bold tracking-wide">Alert</h4>
+            <p id="toastMessage" class="text-[12px] text-slate-300 leading-tight mt-0.5"></p>
+        </div>
+        <button onclick="hideToast()" class="text-slate-400 hover:text-white transition pointer-events-auto"><i class="fa-solid fa-xmark text-lg"></i></button>
+    </div>
+
+    <div class="w-full max-w-sm relative group">
+        <div class="absolute -inset-1 bg-gradient-to-r from-sky-500 to-cyan-400 rounded-3xl blur opacity-20 transition duration-1000"></div>
+        
+        <div class="glass-card relative bg-white/95 backdrop-blur-3xl border border-white/20 p-8 pt-12 flex flex-col items-center shadow-2xl rounded-[2.5rem] text-center">
+            <!-- Floating Security Icon -->
+            <div class="absolute -top-10 left-1/2 -translate-x-1/2 w-20 h-20 rounded-3xl bg-gradient-to-br from-slate-900 to-primary border border-slate-700 text-white flex items-center justify-center text-4xl shadow-2xl transform rotate-6 rotate-0 transition-transform duration-500">
+                <i class="fa-solid fa-shield-halved"></i>
+            </div>
+
+            <div class="text-center mb-6">
+                <p class="text-[10px] font-extrabold uppercase tracking-[0.35em] text-primary/70 mb-2">Security Access</p>
+                <h2 class="text-3xl font-black font-display text-slate-900 tracking-tighter">Gate Security</h2>
+                <div class="inline-flex items-center gap-1.5 bg-slate-100 text-slate-700 text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-widest border border-slate-200 mt-3">
+                    <i class="fa-solid fa-tower-observation text-[8px]"></i> Active Monitoring
+                </div>
+            </div>
+            
+            <p class="text-[11px] text-slate-500 mb-6 leading-relaxed max-w-[260px] font-medium mx-auto">Validate visitor codes, review resident approvals, and move guests through the gate with a faster and clearer security workflow.</p>
+            <div class="grid grid-cols-3 gap-2 w-full mb-8">
+                <div class="rounded-2xl bg-slate-50 border border-slate-200 px-2 py-3">
+                    <p class="text-[9px] font-extrabold uppercase tracking-[0.18em] text-slate-400">Scan</p>
+                    <p class="text-[10px] font-bold text-slate-700 mt-1">Passcodes</p>
+                </div>
+                <div class="rounded-2xl bg-slate-50 border border-slate-200 px-2 py-3">
+                    <p class="text-[9px] font-extrabold uppercase tracking-[0.18em] text-slate-400">Verify</p>
+                    <p class="text-[10px] font-bold text-slate-700 mt-1">Resident</p>
+                </div>
+                <div class="rounded-2xl bg-slate-50 border border-slate-200 px-2 py-3">
+                    <p class="text-[9px] font-extrabold uppercase tracking-[0.18em] text-slate-400">Track</p>
+                    <p class="text-[10px] font-bold text-slate-700 mt-1">Entry Log</p>
+                </div>
+            </div>
+
+            <form onsubmit="verifyCode(event)" class="w-full space-y-4">
+                <div class="relative group/input">
+                    <i class="fa-solid fa-ticket absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm group-focus-within/input:text-primary transition"></i>
+                    <input type="text" id="passInput" placeholder="Pass Code" required class="w-full text-center tracking-[0.2em] font-black text-2xl text-dark bg-slate-50 border border-slate-200 rounded-2xl py-4 focus:outline-none focus:ring-4 focus:ring-primary/10 focus:bg-white transition" maxlength="6">
+                </div>
+                <button type="submit" id="verifyBtn" class="w-full bg-slate-900 text-white font-bold py-4 rounded-2xl shadow-xl hover:bg-primary transition-all active:scale-[0.98] text-lg">Validate Access</button>
+            </form>
+
+            <!-- Dynamic Output Box -->
+            <div id="resultBox" class="w-full mt-6 hidden border-2 border-dashed p-4 rounded-2xl text-left bg-slate-50/50">
+                <div id="foundVisitor" class="hidden">
+                    <span id="scanStatusBadge" class="text-[10px] bg-emerald-100 text-emerald-700 px-2 py-1 rounded-md font-bold uppercase tracking-wider mb-2 inline-block shadow-sm">Valid Pass</span>
+                    <p class="text-sm text-slate-500 mb-1">Guest: <span id="vName" class="font-bold text-dark"></span></p>
+                    <p class="text-sm text-slate-500 mb-1">Unit: <span id="rName" class="font-bold text-dark"></span></p>
+                    <p class="text-[11px] font-bold text-primary mb-4 bg-indigo-50/80 p-2 rounded-xl mt-2 text-center border border-indigo-100/50" id="sName"></p>
+                    
+                    <div id="actionBtnContainer">
+                        <!-- Dynamic button goes here based on status -->
+                    </div>
+                </div>
+
+                <div id="errorVisitor" class="hidden text-center">
+                    <i class="fa-solid fa-circle-xmark text-4xl text-red-500 mb-2"></i>
+                    <h4 class="text-sm font-bold text-dark mb-1">Pass Invalid</h4>
+                    <p id="errorMsg" class="text-xs text-slate-500 px-4"></p>
+                </div>
+            </div>
+            
+        </div>
+    </div>
+
+    <!-- Links -->
+    <div class="mt-8 flex flex-wrap justify-center gap-3">
+        <a href="index.html" class="portal-link"><i class="fa-solid fa-house"></i> Resident Portal</a>
+        <a href="admin.html" class="portal-link"><i class="fa-solid fa-lock"></i> Admin Board</a>
+    </div>
+
+    <script>
+        const API_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' ? 'http://localhost:5000/api' : '/api';
+        let currentVisId = null;
+
+        function showToast(message, type = 'error', title = null) {
+            const toast = document.getElementById('toastNotification');
+            const icon = document.getElementById('toastIcon');
+            
+            document.getElementById('toastMessage').innerText = message;
+            document.getElementById('toastTitle').innerText = title || (type === 'error' ? 'Action Required' : 'Success');
+            
+            if (type === 'error') {
+                icon.className = 'fa-solid fa-circle-exclamation text-2xl text-red-400 drop-shadow-lg';
+            } else if (type === 'success') {
+                icon.className = 'fa-solid fa-circle-check text-2xl text-emerald-400 drop-shadow-lg';
+            } else {
+                icon.className = 'fa-solid fa-circle-info text-2xl text-blue-400 drop-shadow-lg';
+            }
+            
+            toast.style.transform = 'translate(-50%, 0)';
+            toast.style.opacity = '1';
+            
+            setTimeout(() => { hideToast(); }, 4000);
+        }
+
+        function hideToast() {
+            const toast = document.getElementById('toastNotification');
+            toast.style.transform = 'translate(-50%, -150%)';
+            toast.style.opacity = '0';
+        }
+
+        async function verifyCode(e) {
+            e.preventDefault();
+            const btn = document.getElementById('verifyBtn');
+            const resBox = document.getElementById('resultBox');
+            const foundNode = document.getElementById('foundVisitor');
+            const errorNode = document.getElementById('errorVisitor');
+            
+            btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Checking Database...';
+            resBox.classList.add('hidden');
+            foundNode.classList.add('hidden');
+            errorNode.classList.add('hidden');
+            
+            try {
+                const res = await fetch(`${API_URL}/security/verify-pass`, {
+                    method: 'POST', headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ passCode: document.getElementById('passInput').value })
+                });
+                
+                const data = await res.json();
+                resBox.classList.remove('hidden');
+                
+                if(res.ok) {
+                    resBox.classList.replace('border-red-200', 'border-emerald-200');
+                    if(!resBox.className.includes('border-emerald-200')) resBox.classList.add('border-emerald-200'); // init
+                    
+                    document.getElementById('vName').innerText = data.visitorName + ` (${data.purpose})`;
+                    document.getElementById('rName').innerText = data.residentName;
+                    document.getElementById('sName').innerText = data.societyName;
+                    currentVisId = data.visitorId;
+                    
+                    const badge = document.getElementById('scanStatusBadge');
+                    const btnBox = document.getElementById('actionBtnContainer');
+
+                    if(data.status === 'Expected') {
+                        badge.className = 'text-[10px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded font-bold uppercase tracking-wider mb-2 inline-block';
+                        badge.innerText = 'Expected Arrival';
+                        btnBox.innerHTML = `<button onclick="allowEntry(this)" class="w-full bg-emerald-500 text-white font-bold py-3 rounded-xl shadow-md active:scale-95 transition">Approve & Open Gate</button>`;
+                    } else if (data.status === 'Entered') {
+                        badge.className = 'text-[10px] bg-blue-100 text-blue-700 px-2 py-0.5 rounded font-bold uppercase tracking-wider mb-2 inline-block';
+                        badge.innerText = 'Currently Inside';
+                        btnBox.innerHTML = `<button onclick="checkoutEntry(this)" class="w-full bg-slate-800 text-white font-bold py-3 rounded-xl shadow-md active:scale-95 transition">Mark as Exited</button>`;
+                    }
+
+                    foundNode.classList.remove('hidden');
+                } else {
+                    resBox.classList.replace('border-emerald-200', 'border-red-200');
+                    if(!resBox.className.includes('border-red-200')) resBox.classList.add('border-red-200');
+                    
+                    document.getElementById('errorMsg').innerText = data.error;
+                    errorNode.classList.remove('hidden');
+                }
+            } catch(e) { showToast("Network Error", "error"); }
+            btn.innerText = "Validate Code";
+        }
+
+        async function allowEntry(btn) {
+            btn.innerText = "Opening...";
+            try {
+                const res = await fetch(`${API_URL}/visitors/${currentVisId}/check-in`, { method: 'PUT' });
+                if(res.ok) {
+                    btn.outerHTML = `<div class="bg-emerald-50 text-emerald-600 font-bold p-3 rounded-xl border border-emerald-200 text-center"><i class="fa-solid fa-check-double"></i> Marked Entered</div>`;
+                    setTimeout(() => { location.reload(); }, 2000);
+                }
+            } catch(e) {}
+        }
+
+        async function checkoutEntry(btn) {
+            btn.innerText = "Processing...";
+            try {
+                const res = await fetch(`${API_URL}/visitors/${currentVisId}/check-out`, { method: 'PUT' });
+                if(res.ok) {
+                    btn.outerHTML = `<div class="bg-slate-100 text-slate-700 font-bold p-3 rounded-xl border border-slate-300 text-center"><i class="fa-solid fa-person-walking-arrow-right"></i> Marked Exited</div>`;
+                    setTimeout(() => { location.reload(); }, 2000);
+                }
+            } catch(e) {}
+        }
+    </script>
+</body>
+</html>

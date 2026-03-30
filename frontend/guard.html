@@ -4,54 +4,20 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Gate Security - Society Hub</title>
-    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
             theme: {
                 extend: {
-                    fontFamily: { sans: ['Manrope', 'sans-serif'], display: ['Sora', 'sans-serif'] },
-                    colors: { primary: '#155EEF', dark: '#101828', secondary: '#0E9384' }
+                    fontFamily: { sans: ['Outfit', 'sans-serif'] },
+                    colors: { primary: '#4F46E5', dark: '#1E293B' }
                 }
             }
         }
     </script>
-    <style>
-        :root {
-            --panel: rgba(255,255,255,0.92);
-            --border: rgba(148,163,184,0.22);
-            --shadow: 0 28px 60px -34px rgba(15,23,42,0.5);
-        }
-        body {
-            background:
-                radial-gradient(circle at 10% 10%, rgba(21,94,239,0.16), transparent 24%),
-                radial-gradient(circle at 90% 85%, rgba(14,147,132,0.14), transparent 26%),
-                linear-gradient(180deg, #081120 0%, #0b1730 100%);
-            -webkit-tap-highlight-color: transparent;
-        }
-        .glass-card {
-            background: var(--panel);
-            border: 1px solid var(--border);
-            border-radius: 32px;
-            box-shadow: var(--shadow);
-            backdrop-filter: blur(18px);
-        }
-        .portal-link {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.55rem;
-            padding: 0.85rem 1rem;
-            border-radius: 999px;
-            border: 1px solid rgba(255,255,255,0.08);
-            background: rgba(255,255,255,0.05);
-            color: rgba(226,232,240,0.88);
-            font-size: 11px;
-            font-weight: 800;
-            transition: 0.2s ease;
-        }
-        .portal-link:hover { color: white; background: rgba(255,255,255,0.09); }
-    </style>
+    <style>body { background-color: #F8FAFC; -webkit-tap-highlight-color: transparent; }</style>
 </head>
 <body class="text-slate-800 antialiased h-screen flex flex-col items-center justify-center px-6 bg-[#020617] overflow-hidden">
     <!-- Unified Premium Background -->
@@ -72,37 +38,22 @@
     </div>
 
     <div class="w-full max-w-sm relative group">
-        <div class="absolute -inset-1 bg-gradient-to-r from-sky-500 to-cyan-400 rounded-3xl blur opacity-20 transition duration-1000"></div>
+        <div class="absolute -inset-1 bg-gradient-to-r from-slate-400 to-indigo-500 rounded-3xl blur opacity-20 transition duration-1000"></div>
         
         <div class="glass-card relative bg-white/95 backdrop-blur-3xl border border-white/20 p-8 pt-12 flex flex-col items-center shadow-2xl rounded-[2.5rem] text-center">
             <!-- Floating Security Icon -->
-            <div class="absolute -top-10 left-1/2 -translate-x-1/2 w-20 h-20 rounded-3xl bg-gradient-to-br from-slate-900 to-primary border border-slate-700 text-white flex items-center justify-center text-4xl shadow-2xl transform rotate-6 rotate-0 transition-transform duration-500">
+            <div class="absolute -top-10 left-1/2 -translate-x-1/2 w-20 h-20 rounded-3xl bg-slate-900 border border-slate-700 text-white flex items-center justify-center text-4xl shadow-2xl transform rotate-6 rotate-0 transition-transform duration-500">
                 <i class="fa-solid fa-shield-halved"></i>
             </div>
 
             <div class="text-center mb-6">
-                <p class="text-[10px] font-extrabold uppercase tracking-[0.35em] text-primary/70 mb-2">Security Access</p>
-                <h2 class="text-3xl font-black font-display text-slate-900 tracking-tighter">Gate Security</h2>
-                <div class="inline-flex items-center gap-1.5 bg-slate-100 text-slate-700 text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-widest border border-slate-200 mt-3">
+                <h2 class="text-3xl font-black text-slate-900 tracking-tighter">Gate Security</h2>
+                <div class="inline-flex items-center gap-1.5 bg-slate-100 text-slate-700 text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-widest border border-slate-200 mt-2">
                     <i class="fa-solid fa-tower-observation text-[8px]"></i> Active Monitoring
                 </div>
             </div>
             
-            <p class="text-[11px] text-slate-500 mb-6 leading-relaxed max-w-[260px] font-medium mx-auto">Validate visitor codes, review resident approvals, and move guests through the gate with a faster and clearer security workflow.</p>
-            <div class="grid grid-cols-3 gap-2 w-full mb-8">
-                <div class="rounded-2xl bg-slate-50 border border-slate-200 px-2 py-3">
-                    <p class="text-[9px] font-extrabold uppercase tracking-[0.18em] text-slate-400">Scan</p>
-                    <p class="text-[10px] font-bold text-slate-700 mt-1">Passcodes</p>
-                </div>
-                <div class="rounded-2xl bg-slate-50 border border-slate-200 px-2 py-3">
-                    <p class="text-[9px] font-extrabold uppercase tracking-[0.18em] text-slate-400">Verify</p>
-                    <p class="text-[10px] font-bold text-slate-700 mt-1">Resident</p>
-                </div>
-                <div class="rounded-2xl bg-slate-50 border border-slate-200 px-2 py-3">
-                    <p class="text-[9px] font-extrabold uppercase tracking-[0.18em] text-slate-400">Track</p>
-                    <p class="text-[10px] font-bold text-slate-700 mt-1">Entry Log</p>
-                </div>
-            </div>
+            <p class="text-[11px] text-slate-500 mb-8 leading-relaxed max-w-[240px] font-medium mx-auto">Validate global visitor passcodes instantly. Ensure authorized entry for all guests and service providers.</p>
 
             <form onsubmit="verifyCode(event)" class="w-full space-y-4">
                 <div class="relative group/input">
@@ -136,9 +87,9 @@
     </div>
 
     <!-- Links -->
-    <div class="mt-8 flex flex-wrap justify-center gap-3">
-        <a href="index.html" class="portal-link"><i class="fa-solid fa-house"></i> Resident Portal</a>
-        <a href="admin.html" class="portal-link"><i class="fa-solid fa-lock"></i> Admin Board</a>
+    <div class="mt-8 flex gap-4">
+        <a href="index.html" class="text-xs font-bold text-slate-400 hover:text-primary transition"><i class="fa-solid fa-house"></i> Resident Portal</a>
+        <a href="admin.html" class="text-xs font-bold text-slate-400 hover:text-primary transition"><i class="fa-solid fa-lock"></i> Admin Board</a>
     </div>
 
     <script>

@@ -50,6 +50,22 @@ def format_doc(doc):
         doc['societyId'] = str(doc['societyId'])
     return doc
 
+def parse_object_id(value, field_name="id"):
+    try:
+        return ObjectId(value)
+    except Exception:
+        return None
+
+def get_json_data():
+    return request.get_json(silent=True) or {}
+
+def parse_positive_int(value, default_value):
+    try:
+        parsed = int(value)
+        return parsed if parsed > 0 else default_value
+    except (TypeError, ValueError):
+        return default_value
+
 # -------------- MIDDLEWARE --------------
 def token_required(f):
     @wraps(f)
@@ -218,7 +234,7 @@ def create_society():
 @token_required
 def update_profile():
     user_id = request.user_data.get('user_id')
-    data = request.json
+    data = get_json_data()
     
     # Ownership/Rent transfer logic: Update the resident to become a 'Transfer/Rent' flag or just update details
     update_data = {}
@@ -227,6 +243,44 @@ def update_profile():
     
     users_col.update_one({"_id": ObjectId(user_id)}, {"$set": update_data})
     return jsonify({"message": "Profile updated successfully"})
+
+@app.route('/api/users/me', methods=['GET'])
+@token_required
+def get_my_profile():
+    user_id = request.user_data.get('user_id')
+    object_id = parse_object_id(user_id, "user_id")
+    if not object_id:
+        return jsonify({"error": "Invalid user id"}), 400
+
+    user = users_col.find_one({"_id": object_id})
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+
+    pending_dues = list(payments_col.find({
+        "userId": user_id,
+        "societyId": request.user_data.get('societyId'),
+        "status": "Pending"
+    }))
+    active_visitors = visitors_col.count_documents({
+        "userId": user_id,
+        "societyId": request.user_data.get('societyId'),
+        "status": {"$in": ["Expected", "Entered"]}
+    })
+    active_bookings = bookings_col.count_documents({
+        "userId": user_id,
+        "societyId": request.user_data.get('societyId'),
+        "status": "Confirmed"
+    })
+
+    return jsonify({
+        "user": format_doc(user),
+        "summary": {
+            "pendingDuesAmount": sum(float(d.get("amount", 0)) for d in pending_dues),
+            "pendingDuesCount": len(pending_dues),
+            "activeVisitors": active_visitors,
+            "activeBookings": active_bookings
+        }
+    })
 
 # -------------- USERS DIRECTORY MODULE --------------
 @app.route('/api/users', methods=['GET'])
@@ -247,18 +301,30 @@ def get_users():
 @token_required
 def get_notices():
     society_id = request.user_data.get('societyId')
+    category = request.args.get('category')
+    search = (request.args.get('q') or '').strip()
+    limit = min(parse_positive_int(request.args.get('limit'), 50), 100)
+
     query = {"societyId": society_id} if society_id else {} # Admin sees all if no societyId, but let's restrict to societyId
     if request.user_data.get('role') == 'admin' and not society_id:
-        # Admin fetching all notices
-        notices = list(notices_col.find().sort("date", -1))
-    else:
-        notices = list(notices_col.find(query).sort("date", -1))
+        query = {}
+
+    if category:
+        query["category"] = category
+    if search:
+        query["$or"] = [
+            {"title": {"$regex": search, "$options": "i"}},
+            {"content": {"$regex": search, "$options": "i"}},
+            {"category": {"$regex": search, "$options": "i"}}
+        ]
+
+    notices = list(notices_col.find(query).sort("date", -1).limit(limit))
     return jsonify([format_doc(n) for n in notices])
 
 @app.route('/api/notices', methods=['POST'])
 @admin_required
 def add_notice():
-    data = request.json
+    data = get_json_data()
     society_id = data.get("societyId") # Admin must specify which society
     if not society_id: return jsonify({"error": "Society ID required"}), 400
     
@@ -267,6 +333,8 @@ def add_notice():
         "title": data.get("title"),
         "content": data.get("content"),
         "category": data.get("category", "General"),
+        "priority": data.get("priority", "Normal"),
+        "pinned": bool(data.get("pinned", False)),
         "date": datetime.utcnow().isoformat()
     }
     notices_col.insert_one(notice)
@@ -275,18 +343,27 @@ def add_notice():
 @app.route('/api/notices/<n_id>', methods=['PUT'])
 @admin_required
 def update_notice(n_id):
-    data = request.json
-    notices_col.update_one({"_id": ObjectId(n_id)}, {"$set": {
+    data = get_json_data()
+    notice_id = parse_object_id(n_id)
+    if not notice_id:
+        return jsonify({"error": "Invalid notice id"}), 400
+
+    notices_col.update_one({"_id": notice_id}, {"$set": {
         "title": data.get("title"),
         "content": data.get("content"),
-        "category": data.get("category", "General")
+        "category": data.get("category", "General"),
+        "priority": data.get("priority", "Normal"),
+        "pinned": bool(data.get("pinned", False))
     }})
     return jsonify({"message": "Notice updated"})
 
 @app.route('/api/notices/<n_id>', methods=['DELETE'])
 @admin_required
 def delete_notice(n_id):
-    notices_col.delete_one({"_id": ObjectId(n_id)})
+    notice_id = parse_object_id(n_id)
+    if not notice_id:
+        return jsonify({"error": "Invalid notice id"}), 400
+    notices_col.delete_one({"_id": notice_id})
     return jsonify({"message": "Notice deleted"})
 
 @app.route('/api/complaints', methods=['GET'])
@@ -306,7 +383,7 @@ def get_complaints():
 @app.route('/api/complaints', methods=['POST'])
 @token_required
 def add_complaint():
-    data = request.json
+    data = get_json_data()
     society_id = request.user_data.get('societyId')
     user_id = request.user_data.get('user_id')
     user_name = request.user_data.get('name', 'Resident')
@@ -318,7 +395,9 @@ def add_complaint():
         "userName": user_name,
         "category": data.get("category"),
         "description": data.get("description"),
+        "priority": data.get("priority", "Medium"),
         "status": "Pending",
+        "comments": [],
         "date": datetime.utcnow().isoformat()
     }
     complaints_col.insert_one(complaint)
@@ -327,9 +406,70 @@ def add_complaint():
 @app.route('/api/complaints/<c_id>/status', methods=['PUT'])
 @admin_required
 def update_complaint_status(c_id):
-    data = request.json
-    complaints_col.update_one({"_id": ObjectId(c_id)}, {"$set": {"status": data.get("status")}})
+    data = get_json_data()
+    complaint_id = parse_object_id(c_id)
+    if not complaint_id:
+        return jsonify({"error": "Invalid complaint id"}), 400
+
+    update_fields = {"status": data.get("status")}
+    if data.get("priority"):
+        update_fields["priority"] = data.get("priority")
+    if data.get("adminNote") is not None:
+        update_fields["adminNote"] = data.get("adminNote")
+
+    complaints_col.update_one({"_id": complaint_id}, {"$set": update_fields})
     return jsonify({"message": "Status updated"})
+
+@app.route('/api/complaints/<c_id>/comments', methods=['GET'])
+@token_required
+def get_complaint_comments(c_id):
+    complaint_id = parse_object_id(c_id)
+    if not complaint_id:
+        return jsonify({"error": "Invalid complaint id"}), 400
+
+    complaint = complaints_col.find_one({"_id": complaint_id})
+    if not complaint:
+        return jsonify({"error": "Complaint not found"}), 404
+
+    is_admin = request.user_data.get('role') == 'admin'
+    is_owner = complaint.get("userId") == request.user_data.get('user_id')
+    same_society = complaint.get("societyId") == request.user_data.get('societyId')
+    if not is_admin and not (is_owner and same_society):
+        return jsonify({"error": "Unauthorized"}), 403
+
+    return jsonify(complaint.get("comments", []))
+
+@app.route('/api/complaints/<c_id>/comments', methods=['POST'])
+@token_required
+def add_complaint_comment(c_id):
+    complaint_id = parse_object_id(c_id)
+    if not complaint_id:
+        return jsonify({"error": "Invalid complaint id"}), 400
+
+    complaint = complaints_col.find_one({"_id": complaint_id})
+    if not complaint:
+        return jsonify({"error": "Complaint not found"}), 404
+
+    is_admin = request.user_data.get('role') == 'admin'
+    is_owner = complaint.get("userId") == request.user_data.get('user_id')
+    same_society = complaint.get("societyId") == request.user_data.get('societyId')
+    if not is_admin and not (is_owner and same_society):
+        return jsonify({"error": "Unauthorized"}), 403
+
+    data = get_json_data()
+    text = (data.get("text") or "").strip()
+    if not text:
+        return jsonify({"error": "Comment text required"}), 400
+
+    comment = {
+        "text": text,
+        "authorId": request.user_data.get('user_id'),
+        "authorName": request.user_data.get('name', request.user_data.get('role', 'User').title()),
+        "authorRole": request.user_data.get('role'),
+        "createdAt": datetime.utcnow().isoformat()
+    }
+    complaints_col.update_one({"_id": complaint_id}, {"$push": {"comments": comment}})
+    return jsonify({"message": "Comment added", "comment": comment}), 201
 
 @app.route('/api/dues', methods=['GET'])
 @token_required
@@ -444,7 +584,7 @@ def get_visitors():
 @app.route('/api/visitors', methods=['POST'])
 @token_required
 def add_visitor():
-    data = request.json
+    data = get_json_data()
     society_id = request.user_data.get('societyId')
     user_id = request.user_data.get('user_id')
     user_name = request.user_data.get('name', 'Resident')
@@ -467,14 +607,20 @@ def add_visitor():
 @app.route('/api/visitors/<v_id>/check-in', methods=['PUT'])
 def check_in_visitor(v_id):
     # Publicly accessible endpoint for the Security Guard app to update Entry status
-    res = visitors_col.update_one({"_id": ObjectId(v_id)}, {"$set": {"status": "Entered"}})
+    visitor_id = parse_object_id(v_id)
+    if not visitor_id:
+        return jsonify({"error": "Invalid visitor id"}), 400
+    res = visitors_col.update_one({"_id": visitor_id}, {"$set": {"status": "Entered", "checkedInAt": datetime.utcnow().isoformat()}})
     if res.modified_count > 0:
         return jsonify({"message": "Visitor marked as ENTERED."})
     return jsonify({"error": "Failed to update visitor"}), 400
 
 @app.route('/api/visitors/<v_id>/check-out', methods=['PUT'])
 def check_out_visitor(v_id):
-    res = visitors_col.update_one({"_id": ObjectId(v_id)}, {"$set": {"status": "Exited"}})
+    visitor_id = parse_object_id(v_id)
+    if not visitor_id:
+        return jsonify({"error": "Invalid visitor id"}), 400
+    res = visitors_col.update_one({"_id": visitor_id}, {"$set": {"status": "Exited", "checkedOutAt": datetime.utcnow().isoformat()}})
     if res.modified_count > 0:
         return jsonify({"message": "Visitor marked as EXITED."})
     return jsonify({"error": "Failed to update visitor"}), 400
@@ -544,11 +690,38 @@ def manage_bookings():
     bookings = list(bookings_col.find(query).sort("date", -1))
     return jsonify([format_doc(b) for b in bookings])
 
+@app.route('/api/bookings/availability', methods=['GET'])
+@token_required
+def get_booking_availability():
+    society_id = request.user_data.get('societyId')
+    facility = request.args.get('facility')
+    date = request.args.get('date')
+    if not facility or not date:
+        return jsonify({"error": "facility and date are required"}), 400
+
+    confirmed_bookings = list(bookings_col.find({
+        "societyId": society_id,
+        "facility": facility,
+        "date": date,
+        "status": "Confirmed"
+    }))
+    booked_slots = sorted({booking.get("slot") for booking in confirmed_bookings if booking.get("slot")})
+
+    return jsonify({
+        "facility": facility,
+        "date": date,
+        "bookedSlots": booked_slots,
+        "available": len(booked_slots) == 0
+    })
+
 @app.route('/api/bookings/<b_id>', methods=['DELETE'])
 @token_required
 def cancel_booking(b_id):
     user_id = request.user_data.get('user_id')
-    res = bookings_col.delete_one({"_id": ObjectId(b_id), "userId": user_id})
+    booking_id = parse_object_id(b_id)
+    if not booking_id:
+        return jsonify({"error": "Invalid booking id"}), 400
+    res = bookings_col.delete_one({"_id": booking_id, "userId": user_id})
     if res.deleted_count > 0:
         return jsonify({"message": "Booking canceled successfully"})
     return jsonify({"error": "Failed to cancel booking (not found or unauthorized)"}), 400
@@ -916,18 +1089,27 @@ def get_invoice(o_id):
 @token_required
 def get_messages():
     society_id = request.user_data.get('societyId')
-    messages = list(messages_col.find({"societyId": society_id}).sort("createdAt", 1))
+    limit = min(parse_positive_int(request.args.get('limit'), 100), 200)
+    since = request.args.get('since')
+    query = {"societyId": society_id}
+    if since:
+        query["createdAt"] = {"$gte": since}
+    messages = list(messages_col.find(query).sort("createdAt", 1).limit(limit))
     return jsonify([format_doc(m) for m in messages])
 
 @app.route('/api/chat/messages', methods=['POST'])
 @token_required
 def send_message():
-    data = request.json
+    data = get_json_data()
+    text = (data.get("text") or "").strip()
+    if not text:
+        return jsonify({"error": "Message text required"}), 400
+
     message = {
         "societyId": request.user_data.get('societyId'),
         "userId": request.user_data.get('user_id'),
         "userName": request.user_data.get('name'),
-        "text": data.get("text"),
+        "text": text,
         "createdAt": datetime.utcnow().isoformat()
     }
     messages_col.insert_one(message)

@@ -39,6 +39,8 @@ try:
     products_col = db['products']
     orders_col = db['orders']
     messages_col = db['messages']
+    attendance_col = db['attendance']
+    documents_col = db['documents']
     print("Connected to MongoDB database successfully!")
 except Exception as e:
     print(f"Error connecting to MongoDB: {e}")
@@ -49,22 +51,6 @@ def format_doc(doc):
     if doc and 'societyId' in doc and type(doc['societyId']) == ObjectId:
         doc['societyId'] = str(doc['societyId'])
     return doc
-
-def parse_object_id(value, field_name="id"):
-    try:
-        return ObjectId(value)
-    except Exception:
-        return None
-
-def get_json_data():
-    return request.get_json(silent=True) or {}
-
-def parse_positive_int(value, default_value):
-    try:
-        parsed = int(value)
-        return parsed if parsed > 0 else default_value
-    except (TypeError, ValueError):
-        return default_value
 
 # -------------- MIDDLEWARE --------------
 def token_required(f):
@@ -95,23 +81,6 @@ def admin_required(f):
                 return jsonify({'error': 'Admin privileges required'}), 403
             request.user_data = data
         except Exception as e:
-            return jsonify({'error': 'Token is invalid'}), 401
-        return f(*args, **kwargs)
-    return decorated
-
-def seller_or_admin_required(f):
-    @wraps(f)
-    def decorated(*args, **kwargs):
-        token = request.headers.get('Authorization')
-        if not token:
-            return jsonify({'error': 'Token is missing'}), 401
-        try:
-            token = token.split(" ")[1]
-            data = jwt.decode(token, app.config['SECRET_KEY'], algorithms=['HS256'])
-            if data.get('role') not in ['seller', 'admin']:
-                return jsonify({'error': 'Seller or admin privileges required'}), 403
-            request.user_data = data
-        except Exception:
             return jsonify({'error': 'Token is invalid'}), 401
         return f(*args, **kwargs)
     return decorated
@@ -190,6 +159,12 @@ def verify_otp():
     )
     return jsonify({"token": token, "user": format_doc(user)})
 
+@app.route('/api/users/<u_id>', methods=['DELETE'])
+@admin_required
+def delete_user(u_id):
+    users_col.delete_one({"_id": ObjectId(u_id)})
+    return jsonify({"message": "User removed from society records"})
+
 @app.route('/api/auth/admin-login', methods=['POST'])
 def admin_login():
     data = request.json
@@ -202,8 +177,23 @@ def admin_login():
 def seller_login():
     data = request.json
     if data.get('pin') == "55555":
-        token = jwt.encode({'role': 'seller', 'exp': datetime.utcnow().timestamp() + 86400, 'name': 'Verified Seller'}, app.config['SECRET_KEY'], algorithm='HS256')
-        return jsonify({"token": token, "role": "seller", "name": "Verified Seller"})
+        # Global Vendor User
+        payload = {
+            'user_id': 'MODERATOR_VENDOR',
+            'role': 'seller',
+            'name': 'Verified Marketplace Vendor',
+            'exp': datetime.utcnow().timestamp() + 86400
+        }
+        token = jwt.encode(payload, app.config['SECRET_KEY'], algorithm='HS256')
+        return jsonify({"token": token, "role": "seller", "name": "Verified Marketplace Vendor"})
+    return jsonify({"error": "Invalid PIN"}), 401
+
+@app.route('/api/auth/guard-login', methods=['POST'])
+def guard_login():
+    data = request.json
+    if data.get('pin') == "11111":
+        token = jwt.encode({'role': 'guard', 'exp': datetime.utcnow().timestamp() + 86400}, app.config['SECRET_KEY'], algorithm='HS256')
+        return jsonify({"token": token, "role": "guard"})
     return jsonify({"error": "Invalid PIN"}), 401
 
 # -------------- ADMIN: SOCIETIES MODULE --------------
@@ -234,7 +224,7 @@ def create_society():
 @token_required
 def update_profile():
     user_id = request.user_data.get('user_id')
-    data = get_json_data()
+    data = request.json
     
     # Ownership/Rent transfer logic: Update the resident to become a 'Transfer/Rent' flag or just update details
     update_data = {}
@@ -243,44 +233,6 @@ def update_profile():
     
     users_col.update_one({"_id": ObjectId(user_id)}, {"$set": update_data})
     return jsonify({"message": "Profile updated successfully"})
-
-@app.route('/api/users/me', methods=['GET'])
-@token_required
-def get_my_profile():
-    user_id = request.user_data.get('user_id')
-    object_id = parse_object_id(user_id, "user_id")
-    if not object_id:
-        return jsonify({"error": "Invalid user id"}), 400
-
-    user = users_col.find_one({"_id": object_id})
-    if not user:
-        return jsonify({"error": "User not found"}), 404
-
-    pending_dues = list(payments_col.find({
-        "userId": user_id,
-        "societyId": request.user_data.get('societyId'),
-        "status": "Pending"
-    }))
-    active_visitors = visitors_col.count_documents({
-        "userId": user_id,
-        "societyId": request.user_data.get('societyId'),
-        "status": {"$in": ["Expected", "Entered"]}
-    })
-    active_bookings = bookings_col.count_documents({
-        "userId": user_id,
-        "societyId": request.user_data.get('societyId'),
-        "status": "Confirmed"
-    })
-
-    return jsonify({
-        "user": format_doc(user),
-        "summary": {
-            "pendingDuesAmount": sum(float(d.get("amount", 0)) for d in pending_dues),
-            "pendingDuesCount": len(pending_dues),
-            "activeVisitors": active_visitors,
-            "activeBookings": active_bookings
-        }
-    })
 
 # -------------- USERS DIRECTORY MODULE --------------
 @app.route('/api/users', methods=['GET'])
@@ -301,30 +253,18 @@ def get_users():
 @token_required
 def get_notices():
     society_id = request.user_data.get('societyId')
-    category = request.args.get('category')
-    search = (request.args.get('q') or '').strip()
-    limit = min(parse_positive_int(request.args.get('limit'), 50), 100)
-
     query = {"societyId": society_id} if society_id else {} # Admin sees all if no societyId, but let's restrict to societyId
     if request.user_data.get('role') == 'admin' and not society_id:
-        query = {}
-
-    if category:
-        query["category"] = category
-    if search:
-        query["$or"] = [
-            {"title": {"$regex": search, "$options": "i"}},
-            {"content": {"$regex": search, "$options": "i"}},
-            {"category": {"$regex": search, "$options": "i"}}
-        ]
-
-    notices = list(notices_col.find(query).sort("date", -1).limit(limit))
+        # Admin fetching all notices
+        notices = list(notices_col.find().sort("date", -1))
+    else:
+        notices = list(notices_col.find(query).sort("date", -1))
     return jsonify([format_doc(n) for n in notices])
 
 @app.route('/api/notices', methods=['POST'])
 @admin_required
 def add_notice():
-    data = get_json_data()
+    data = request.json
     society_id = data.get("societyId") # Admin must specify which society
     if not society_id: return jsonify({"error": "Society ID required"}), 400
     
@@ -333,8 +273,6 @@ def add_notice():
         "title": data.get("title"),
         "content": data.get("content"),
         "category": data.get("category", "General"),
-        "priority": data.get("priority", "Normal"),
-        "pinned": bool(data.get("pinned", False)),
         "date": datetime.utcnow().isoformat()
     }
     notices_col.insert_one(notice)
@@ -343,27 +281,18 @@ def add_notice():
 @app.route('/api/notices/<n_id>', methods=['PUT'])
 @admin_required
 def update_notice(n_id):
-    data = get_json_data()
-    notice_id = parse_object_id(n_id)
-    if not notice_id:
-        return jsonify({"error": "Invalid notice id"}), 400
-
-    notices_col.update_one({"_id": notice_id}, {"$set": {
+    data = request.json
+    notices_col.update_one({"_id": ObjectId(n_id)}, {"$set": {
         "title": data.get("title"),
         "content": data.get("content"),
-        "category": data.get("category", "General"),
-        "priority": data.get("priority", "Normal"),
-        "pinned": bool(data.get("pinned", False))
+        "category": data.get("category", "General")
     }})
     return jsonify({"message": "Notice updated"})
 
 @app.route('/api/notices/<n_id>', methods=['DELETE'])
 @admin_required
 def delete_notice(n_id):
-    notice_id = parse_object_id(n_id)
-    if not notice_id:
-        return jsonify({"error": "Invalid notice id"}), 400
-    notices_col.delete_one({"_id": notice_id})
+    notices_col.delete_one({"_id": ObjectId(n_id)})
     return jsonify({"message": "Notice deleted"})
 
 @app.route('/api/complaints', methods=['GET'])
@@ -383,7 +312,7 @@ def get_complaints():
 @app.route('/api/complaints', methods=['POST'])
 @token_required
 def add_complaint():
-    data = get_json_data()
+    data = request.json
     society_id = request.user_data.get('societyId')
     user_id = request.user_data.get('user_id')
     user_name = request.user_data.get('name', 'Resident')
@@ -395,9 +324,7 @@ def add_complaint():
         "userName": user_name,
         "category": data.get("category"),
         "description": data.get("description"),
-        "priority": data.get("priority", "Medium"),
         "status": "Pending",
-        "comments": [],
         "date": datetime.utcnow().isoformat()
     }
     complaints_col.insert_one(complaint)
@@ -406,70 +333,9 @@ def add_complaint():
 @app.route('/api/complaints/<c_id>/status', methods=['PUT'])
 @admin_required
 def update_complaint_status(c_id):
-    data = get_json_data()
-    complaint_id = parse_object_id(c_id)
-    if not complaint_id:
-        return jsonify({"error": "Invalid complaint id"}), 400
-
-    update_fields = {"status": data.get("status")}
-    if data.get("priority"):
-        update_fields["priority"] = data.get("priority")
-    if data.get("adminNote") is not None:
-        update_fields["adminNote"] = data.get("adminNote")
-
-    complaints_col.update_one({"_id": complaint_id}, {"$set": update_fields})
+    data = request.json
+    complaints_col.update_one({"_id": ObjectId(c_id)}, {"$set": {"status": data.get("status")}})
     return jsonify({"message": "Status updated"})
-
-@app.route('/api/complaints/<c_id>/comments', methods=['GET'])
-@token_required
-def get_complaint_comments(c_id):
-    complaint_id = parse_object_id(c_id)
-    if not complaint_id:
-        return jsonify({"error": "Invalid complaint id"}), 400
-
-    complaint = complaints_col.find_one({"_id": complaint_id})
-    if not complaint:
-        return jsonify({"error": "Complaint not found"}), 404
-
-    is_admin = request.user_data.get('role') == 'admin'
-    is_owner = complaint.get("userId") == request.user_data.get('user_id')
-    same_society = complaint.get("societyId") == request.user_data.get('societyId')
-    if not is_admin and not (is_owner and same_society):
-        return jsonify({"error": "Unauthorized"}), 403
-
-    return jsonify(complaint.get("comments", []))
-
-@app.route('/api/complaints/<c_id>/comments', methods=['POST'])
-@token_required
-def add_complaint_comment(c_id):
-    complaint_id = parse_object_id(c_id)
-    if not complaint_id:
-        return jsonify({"error": "Invalid complaint id"}), 400
-
-    complaint = complaints_col.find_one({"_id": complaint_id})
-    if not complaint:
-        return jsonify({"error": "Complaint not found"}), 404
-
-    is_admin = request.user_data.get('role') == 'admin'
-    is_owner = complaint.get("userId") == request.user_data.get('user_id')
-    same_society = complaint.get("societyId") == request.user_data.get('societyId')
-    if not is_admin and not (is_owner and same_society):
-        return jsonify({"error": "Unauthorized"}), 403
-
-    data = get_json_data()
-    text = (data.get("text") or "").strip()
-    if not text:
-        return jsonify({"error": "Comment text required"}), 400
-
-    comment = {
-        "text": text,
-        "authorId": request.user_data.get('user_id'),
-        "authorName": request.user_data.get('name', request.user_data.get('role', 'User').title()),
-        "authorRole": request.user_data.get('role'),
-        "createdAt": datetime.utcnow().isoformat()
-    }
-    complaints_col.update_one({"_id": complaint_id}, {"$push": {"comments": comment}})
-    return jsonify({"message": "Comment added", "comment": comment}), 201
 
 @app.route('/api/dues', methods=['GET'])
 @token_required
@@ -524,14 +390,7 @@ def add_bulk_dues():
 @app.route('/api/dues/<d_id>/pay', methods=['PUT'])
 @token_required
 def pay_due(d_id):
-    user_id = request.user_data.get('user_id')
-    society_id = request.user_data.get('societyId')
-    query = {"_id": ObjectId(d_id)}
-    if request.user_data.get('role') != 'admin':
-        query.update({"userId": user_id, "societyId": society_id})
-    res = payments_col.update_one(query, {"$set": {"status": "Paid", "paidAt": datetime.utcnow().isoformat()}})
-    if res.matched_count == 0:
-        return jsonify({"error": "Due not found or unauthorized"}), 404
+    payments_col.update_one({"_id": ObjectId(d_id)}, {"$set": {"status": "Paid"}})
     return jsonify({"message": "Payment successful"})
 
 # -------------- SERVICES / HELPDESK MODULE --------------
@@ -565,6 +424,49 @@ def add_service():
     services_col.insert_one(service)
     return jsonify({"message": "Service added"})
 
+# -------------- STAFF & ATTENDANCE MODULE --------------
+@app.route('/api/staff/attendance', methods=['POST'])
+def log_staff_attendance():
+    data = request.json
+    staff_id = data.get('staffId')
+    action = data.get('action') # 'In' or 'Out'
+    
+    if not staff_id or action not in ['In', 'Out']:
+        return jsonify({"error": "Staff ID and action (In/Out) required"}), 400
+        
+    log = {
+        "staffId": staff_id,
+        "action": action,
+        "timestamp": datetime.utcnow().isoformat()
+    }
+    attendance_col.insert_one(log)
+    
+    # Update current status in services_col
+    services_col.update_one({"_id": ObjectId(staff_id)}, {"$set": {"status": "Present" if action == 'In' else "Absent"}})
+    
+    return jsonify({"message": f"Staff marked {action} successfully"})
+
+@app.route('/api/staff/<s_id>/history', methods=['GET'])
+@token_required
+def get_staff_history(s_id):
+    history = list(attendance_col.find({"staffId": s_id}).sort("timestamp", -1))
+    return jsonify([format_doc(h) for h in history])
+
+@app.route('/api/staff/verify', methods=['POST'])
+def verify_staff():
+    # Similar to visitor verification for guards
+    phone = request.json.get('phone')
+    staff = services_col.find_one({"phone": phone})
+    if not staff:
+        return jsonify({"error": "Staff not registered"}), 404
+        
+    return jsonify({
+        "staffId": str(staff["_id"]),
+        "name": staff["name"],
+        "role": staff["role"],
+        "status": staff.get("status", "Absent")
+    })
+
 # -------------- VISITOR / SECURITY ENGINE --------------
 @app.route('/api/visitors', methods=['GET'])
 @token_required
@@ -584,7 +486,7 @@ def get_visitors():
 @app.route('/api/visitors', methods=['POST'])
 @token_required
 def add_visitor():
-    data = get_json_data()
+    data = request.json
     society_id = request.user_data.get('societyId')
     user_id = request.user_data.get('user_id')
     user_name = request.user_data.get('name', 'Resident')
@@ -607,20 +509,14 @@ def add_visitor():
 @app.route('/api/visitors/<v_id>/check-in', methods=['PUT'])
 def check_in_visitor(v_id):
     # Publicly accessible endpoint for the Security Guard app to update Entry status
-    visitor_id = parse_object_id(v_id)
-    if not visitor_id:
-        return jsonify({"error": "Invalid visitor id"}), 400
-    res = visitors_col.update_one({"_id": visitor_id}, {"$set": {"status": "Entered", "checkedInAt": datetime.utcnow().isoformat()}})
+    res = visitors_col.update_one({"_id": ObjectId(v_id)}, {"$set": {"status": "Entered", "date": datetime.utcnow().isoformat()}})
     if res.modified_count > 0:
         return jsonify({"message": "Visitor marked as ENTERED."})
     return jsonify({"error": "Failed to update visitor"}), 400
 
 @app.route('/api/visitors/<v_id>/check-out', methods=['PUT'])
 def check_out_visitor(v_id):
-    visitor_id = parse_object_id(v_id)
-    if not visitor_id:
-        return jsonify({"error": "Invalid visitor id"}), 400
-    res = visitors_col.update_one({"_id": visitor_id}, {"$set": {"status": "Exited", "checkedOutAt": datetime.utcnow().isoformat()}})
+    res = visitors_col.update_one({"_id": ObjectId(v_id)}, {"$set": {"status": "Exited", "date": datetime.utcnow().isoformat()}})
     if res.modified_count > 0:
         return jsonify({"message": "Visitor marked as EXITED."})
     return jsonify({"error": "Failed to update visitor"}), 400
@@ -646,6 +542,12 @@ def verify_pass():
         "societyName": soc_name,
         "status": visitor["status"]
     })
+
+@app.route('/api/security/recent-logs', methods=['GET'])
+def get_recent_logs():
+    # Fetch last 10 entries/exits
+    logs = list(visitors_col.find({"status": {"$in": ["Entered", "Exited"]}}).sort("date", -1).limit(10))
+    return jsonify([format_doc(l) for l in logs])
 
 @app.route('/api/bookings', methods=['GET', 'POST'])
 @token_required
@@ -690,38 +592,17 @@ def manage_bookings():
     bookings = list(bookings_col.find(query).sort("date", -1))
     return jsonify([format_doc(b) for b in bookings])
 
-@app.route('/api/bookings/availability', methods=['GET'])
-@token_required
-def get_booking_availability():
-    society_id = request.user_data.get('societyId')
-    facility = request.args.get('facility')
-    date = request.args.get('date')
-    if not facility or not date:
-        return jsonify({"error": "facility and date are required"}), 400
-
-    confirmed_bookings = list(bookings_col.find({
-        "societyId": society_id,
-        "facility": facility,
-        "date": date,
-        "status": "Confirmed"
-    }))
-    booked_slots = sorted({booking.get("slot") for booking in confirmed_bookings if booking.get("slot")})
-
-    return jsonify({
-        "facility": facility,
-        "date": date,
-        "bookedSlots": booked_slots,
-        "available": len(booked_slots) == 0
-    })
-
 @app.route('/api/bookings/<b_id>', methods=['DELETE'])
 @token_required
 def cancel_booking(b_id):
     user_id = request.user_data.get('user_id')
-    booking_id = parse_object_id(b_id)
-    if not booking_id:
-        return jsonify({"error": "Invalid booking id"}), 400
-    res = bookings_col.delete_one({"_id": booking_id, "userId": user_id})
+    role = request.user_data.get('role')
+    
+    if role == 'admin':
+        res = bookings_col.delete_one({"_id": ObjectId(b_id)})
+    else:
+        res = bookings_col.delete_one({"_id": ObjectId(b_id), "userId": user_id})
+        
     if res.deleted_count > 0:
         return jsonify({"message": "Booking canceled successfully"})
     return jsonify({"error": "Failed to cancel booking (not found or unauthorized)"}), 400
@@ -756,6 +637,22 @@ def get_analytics():
     my_dues = list(payments_col.find(my_dues_query))
     my_pending = sum([float(d.get('amount', 0)) for d in my_dues if d.get('status') == 'Pending'])
 
+    today_str = datetime.utcnow().strftime('%Y-%m-%d')
+    # Count visitors scheduled for today (expectedDate starts with YYYY-MM-DD)
+    today_visitors = visitors_col.count_documents({**query, "expectedDate": {"$regex": "^" + today_str}})
+    total_bookings = bookings_col.count_documents(query)
+
+    # Marketplace Sales Detail
+    orders = list(orders_col.find(query))
+    total_sales = sum([o.get('price', 0) for o in orders if o.get('paymentStatus') == 'Paid'])
+    
+    # Simple Aggregate performance (Top Categories)
+    cat_performance = {}
+    for o in orders:
+        if o.get('paymentStatus') == 'Paid':
+            cat = o.get('category', 'General')
+            cat_performance[cat] = cat_performance.get(cat, 0) + o.get('price', 0)
+    
     return jsonify({
         "total_users": total_users,
         "total_complaints": total_complaints,
@@ -764,7 +661,11 @@ def get_analytics():
         "resolved_complaints": resolved_complaints,
         "dues_collected": society_collected,
         "dues_pending": society_pending,
-        "my_dues_pending": my_pending
+        "my_dues_pending": my_pending,
+        "today_visitors": today_visitors,
+        "total_bookings": total_bookings,
+        "market_revenue": total_sales,
+        "category_stats": cat_performance
     })
 
 # -------------- POLLS / SURVEYS MODULE --------------
@@ -793,11 +694,27 @@ def create_poll():
         "question": data.get("question"),
         "options": [{"text": opt, "votes": 0} for opt in data.get("options", [])],
         "voters": [],
+        "voters_v2": [], # [{uid, opt}, ...]
         "createdAt": datetime.utcnow().isoformat(),
         "expiresAt": data.get("expiresAt")
     }
     polls_col.insert_one(poll)
     return jsonify({"message": "Poll created"}), 201
+
+@app.route('/api/polls/<p_id>', methods=['PUT', 'DELETE'])
+@admin_required
+def manage_poll(p_id):
+    if request.method == 'DELETE':
+        polls_col.delete_one({"_id": ObjectId(p_id)})
+        return jsonify({"message": "Poll deleted"})
+    
+    data = request.json
+    update_data = {"question": data.get("question")}
+    if "options" in data:
+        update_data["options"] = [{"text": opt, "votes": 0} for opt in data.get("options", [])]
+    
+    polls_col.update_one({"_id": ObjectId(p_id)}, {"$set": update_data})
+    return jsonify({"message": "Poll updated"})
 
 @app.route('/api/polls/<p_id>/vote', methods=['POST'])
 @token_required
@@ -808,17 +725,38 @@ def vote_poll(p_id):
     poll = polls_col.find_one({"_id": ObjectId(p_id)})
     if not poll: return jsonify({"error": "Poll not found"}), 404
     
-    if user_id in poll.get('voters', []):
+    # Check both old and new formats
+    if user_id in poll.get('voters', []) or any(v.get('uid') == user_id for v in poll.get('voters_v2', [])):
         return jsonify({"error": "Already voted"}), 400
         
     polls_col.update_one(
         {"_id": ObjectId(p_id)},
         {
             "$inc": {f"options.{option_index}.votes": 1},
-            "$push": {"voters": user_id}
+            "$push": {"voters_v2": {"uid": user_id, "opt": option_index}}
         }
     )
-    return jsonify({"message": "Vote recorded"})
+    return jsonify({"message": "Vote recorded"}), 200
+
+@app.route('/api/polls/<p_id>/vote', methods=['DELETE'])
+@token_required
+def retract_vote(p_id):
+    user_id = request.user_data.get('user_id')
+    poll = polls_col.find_one({"_id": ObjectId(p_id)})
+    if not poll: return jsonify({"error": "Poll not found"}), 404
+    
+    found_vote = next((v for v in poll.get('voters_v2', []) if v.get('uid') == user_id), None)
+    if not found_vote:
+        return jsonify({"error": "No vote found to retract"}), 400
+        
+    polls_col.update_one(
+        {"_id": ObjectId(p_id)},
+        {
+            "$inc": {f"options.{found_vote['opt']}.votes": -1},
+            "$pull": {"voters_v2": {"uid": user_id}}
+        }
+    )
+    return jsonify({"message": "Vote retracted"})
 
 # -------------- EMERGENCY / SOS MODULE --------------
 @app.route('/api/sos', methods=['POST'])
@@ -840,17 +778,9 @@ def trigger_sos():
     return jsonify({"message": "SOS Alert Broadcasted! Help is on the way."}), 201
 
 @app.route('/api/sos', methods=['GET'])
-@token_required
 def get_sos_alerts():
-    if request.user_data.get('role') == 'admin':
-        society_filter = request.args.get('societyId')
-        query = {"status": "Active"}
-        if society_filter:
-            query["societyId"] = society_filter
-    else:
-        society_id = request.user_data.get('societyId')
-        query = {"societyId": society_id, "status": "Active"}
-    alerts = list(sos_col.find(query).sort("createdAt", -1))
+    # Allow Guards (no societyId restriction for now or logic to handle it)
+    alerts = list(sos_col.find({"status": "Active"}).sort("createdAt", -1))
     return jsonify([format_doc(a) for a in alerts])
 
 @app.route('/api/sos/<s_id>/resolve', methods=['PUT'])
@@ -895,27 +825,86 @@ def add_vehicle():
     vehicles_col.insert_one(vehicle)
     return jsonify({"message": "Vehicle registered"}), 201
 
+@app.route('/api/vehicles/<v_id>', methods=['PUT', 'DELETE'])
+@token_required
+def manage_vehicle(v_id):
+    user_id = request.user_data.get('user_id')
+    role = request.user_data.get('role')
+    
+    vehicle = vehicles_col.find_one({"_id": ObjectId(v_id)})
+    if not vehicle: return jsonify({"error": "Vehicle not found"}), 404
+    
+    if role != 'admin' and str(vehicle.get('userId')) != user_id:
+        return jsonify({"error": "Unauthorized to manage this vehicle"}), 403
+
+    if request.method == 'DELETE':
+        vehicles_col.delete_one({"_id": ObjectId(v_id)})
+        return jsonify({"message": "Vehicle removed successfully"})
+    
+    data = request.json
+    update_data = {
+        "vehicleNumber": data.get("vehicleNumber"),
+        "vehicleType": data.get("vehicleType"),
+        "model": data.get("model"),
+        "parkingSlot": data.get("parkingSlot")
+    }
+    vehicles_col.update_one({"_id": ObjectId(v_id)}, {"$set": update_data})
+    return jsonify({"message": "Vehicle updated successfully"})
+
 # -------------- MARKETPLACE MODULE --------------
 @app.route('/api/marketplace/products', methods=['GET'])
 @token_required
 def get_products():
-    products = list(products_col.find({"status": "Active"}).sort("createdAt", -1))
+    society_id = request.user_data.get('societyId')
+    # Fetch products that belong to this society, OR global products (societyId is None/missing)
+    products = list(products_col.find({
+        "status": "Active",
+        "$or": [
+            {"societyId": society_id},
+            {"societyId": None},
+            {"societyId": {"$exists": False}}
+        ]
+    }).sort("createdAt", -1))
     return jsonify([format_doc(p) for p in products])
 
 @app.route('/api/marketplace/seller/products', methods=['GET'])
-@seller_or_admin_required
+@token_required
 def get_seller_products():
-    products = list(products_col.find().sort("createdAt", -1))
+    user_id = request.user_data.get('user_id')
+    role = request.user_data.get('role')
+    society_filter = request.args.get('societyId')
+    
+    if role == 'admin':
+        query = {"status": {"$ne": "Deleted"}}
+        if society_filter: query["societyId"] = society_filter
+    else:
+        # Check for both string and ObjectId versions of the user_id
+        query = {
+            "status": {"$ne": "Deleted"},
+            "$or": [
+                {"userId": user_id},
+                {"userId": ObjectId(user_id) if ObjectId.is_valid(user_id) else None}
+            ]
+        }
+        
+    products = list(products_col.find(query).sort("createdAt", -1))
     return jsonify([format_doc(p) for p in products])
 
 @app.route('/api/marketplace/products', methods=['POST'])
-@seller_or_admin_required
+@token_required
 def add_product():
+    user_id = request.user_data.get('user_id')
+    user_name = request.user_data.get('name')
+    society_id = request.user_data.get('societyId')
     data = request.json
     product = {
+        "userId": user_id,
+        "sellerName": user_name,
+        "societyId": society_id,
         "name": data.get("name"),
         "price": float(data.get("price", 0)),
         "description": data.get("description"),
+        "category": data.get("category", "General"),
         "image": data.get("image", "https://img.icons8.com/color/96/box--v1.png"),
         "status": "Active",
         "createdAt": datetime.utcnow().isoformat()
@@ -924,55 +913,52 @@ def add_product():
     return jsonify({"message": "Product listed successfully"}), 201
 
 @app.route('/api/marketplace/products/<p_id>', methods=['PUT'])
-@seller_or_admin_required
+@token_required
 def update_product(p_id):
+    user_id = request.user_data.get('user_id')
+    role = request.user_data.get('role')
     data = request.json
-    update_fields = {}
-    if data.get("name"): update_fields["name"] = data["name"]
-    if data.get("price"): update_fields["price"] = float(data["price"])
-    if data.get("description") is not None: update_fields["description"] = data["description"]
-    if data.get("image"): update_fields["image"] = data["image"]
-    if data.get("status"): update_fields["status"] = data["status"]
-    try:
-        res = products_col.update_one({"_id": ObjectId(p_id)}, {"$set": update_fields})
-    except Exception:
-        return jsonify({"error": "Invalid product id"}), 400
-    if res.matched_count == 0:
+    
+    product = products_col.find_one({"_id": ObjectId(p_id)})
+    if not product:
         return jsonify({"error": "Product not found"}), 404
-    return jsonify({"message": "Product updated"})
+        
+    if role != 'admin' and str(product.get('userId')) != user_id:
+        return jsonify({"error": "Unauthorized"}), 403
+
+    update_fields = {}
+    if 'name' in data: update_fields['name'] = data['name']
+    if 'price' in data: update_fields['price'] = float(data['price'])
+    if 'description' in data: update_fields['description'] = data['description']
+    if 'category' in data: update_fields['category'] = data['category']
+    if 'image' in data: update_fields['image'] = data['image']
+    
+    if not update_fields:
+        return jsonify({"error": "No fields to update"}), 400
+        
+    products_col.update_one({"_id": ObjectId(p_id)}, {"$set": update_fields})
+    return jsonify({"message": "Product updated successfully"})
 
 @app.route('/api/marketplace/products/<p_id>', methods=['DELETE'])
-@seller_or_admin_required
+@token_required
 def delete_product(p_id):
-    try:
-        res = products_col.delete_one({"_id": ObjectId(p_id)})
-    except Exception:
-        return jsonify({"error": "Invalid product id"}), 400
-    if res.deleted_count == 0:
+    user_id = request.user_data.get('user_id')
+    role = request.user_data.get('role')
+    
+    product = products_col.find_one({"_id": ObjectId(p_id)})
+    if not product:
         return jsonify({"error": "Product not found"}), 404
-    return jsonify({"message": "Product deleted"})
 
-@app.route('/api/marketplace/seller/analytics', methods=['GET'])
-@seller_or_admin_required
-def seller_analytics():
-    total_products = products_col.count_documents({})
-    active_products = products_col.count_documents({"status": "Active"})
-    all_orders = list(orders_col.find())
-    total_orders = len(all_orders)
-    total_revenue = sum(float(o.get("price", 0)) for o in all_orders)
-    paid_orders = [o for o in all_orders if o.get("paymentStatus") == "Paid"]
-    paid_revenue = sum(float(o.get("price", 0)) for o in paid_orders)
-    pending_revenue = total_revenue - paid_revenue
-    return jsonify({
-        "totalProducts": total_products,
-        "activeProducts": active_products,
-        "totalOrders": total_orders,
-        "totalRevenue": total_revenue,
-        "paidRevenue": paid_revenue,
-        "pendingRevenue": pending_revenue,
-        "paidOrders": len(paid_orders),
-        "pendingOrders": total_orders - len(paid_orders)
-    })
+    if role == 'admin':
+        products_col.delete_one({"_id": ObjectId(p_id)})
+        return jsonify({"message": "Product removed from marketplace by admin"})
+    
+    if str(product.get('userId')) != user_id:
+        return jsonify({"error": "Unauthorized"}), 403
+    
+    # Soft delete for sellers
+    products_col.update_one({"_id": ObjectId(p_id)}, {"$set": {"status": "Deleted"}})
+    return jsonify({"message": "Product hidden by seller"})
 
 @app.route('/api/marketplace/orders', methods=['POST'])
 @token_required
@@ -981,22 +967,22 @@ def place_order():
     user_name = request.user_data.get('name')
     society_id = request.user_data.get('societyId')
     data = request.json
-    product = None
-    product_id = data.get("productId")
-    if product_id:
-        try:
-            product = products_col.find_one({"_id": ObjectId(product_id)})
-        except Exception:
-            product = None
+    
+    # Get product to find the seller
+    p_id = data.get("productId")
+    product = products_col.find_one({"_id": ObjectId(p_id)})
+    seller_id = str(product.get('userId')) if product else None
     
     order = {
         "userId": user_id,
         "userName": user_name,
         "societyId": society_id,
-        "productId": product_id,
-        "productName": data.get("productName") or (product or {}).get("name", ""),
-        "productImage": data.get("productImage") or (product or {}).get("image", "https://img.icons8.com/color/96/box--v1.png"),
-        "price": data.get("price") if data.get("price") is not None else float((product or {}).get("price", 0)),
+        "sellerId": seller_id,
+        "productId": p_id,
+        "productName": data.get("productName"),
+        "productImage": data.get("productImage", ""),
+        "category": data.get("category", "General"),
+        "price": data.get("price"),
         "status": "Placed",
         "paymentStatus": "Pending",
         "timeline": [{"status": "Placed", "time": datetime.utcnow().isoformat()}],
@@ -1013,42 +999,67 @@ def get_orders():
     return jsonify([format_doc(o) for o in orders])
 
 @app.route('/api/marketplace/seller/orders', methods=['GET'])
-@seller_or_admin_required
+@token_required
 def get_seller_orders():
-    orders = list(orders_col.find().sort("createdAt", -1))
+    user_id = request.user_data.get('user_id')
+    role = request.user_data.get('role')
+    society_filter = request.args.get('societyId')
+
+    if role == 'admin':
+        query = {}
+        if society_filter: query["societyId"] = society_filter
+    else:
+        query = {"$or": [
+            {"sellerId": user_id},
+            {"sellerId": ObjectId(user_id) if ObjectId.is_valid(user_id) else None}
+        ]}
+
+    orders = list(orders_col.find(query).sort("createdAt", -1))
     return jsonify([format_doc(o) for o in orders])
 
 @app.route('/api/marketplace/orders/<o_id>/status', methods=['PUT'])
-@seller_or_admin_required
+@token_required
 def update_order_status(o_id):
+    user_id = request.user_data.get('user_id')
+    role = request.user_data.get('role')
     data = request.json
     new_status = data.get("status")
-    update_fields = {"status": new_status}
-    timeline_entries = [{"status": new_status, "time": datetime.utcnow().isoformat()}]
-    if new_status == "Delivered":
-        update_fields["deliveredAt"] = datetime.utcnow().isoformat()
-        update_fields["paymentStatus"] = "Paid"
-        update_fields["paidAt"] = datetime.utcnow().isoformat()
-        timeline_entries.append({"status": "Payment Confirmed", "time": datetime.utcnow().isoformat()})
-    res = orders_col.update_one(
-        {"_id": ObjectId(o_id)},
-        {
-            "$set": update_fields,
-            "$push": {"timeline": {"$each": timeline_entries}}
-        }
-    )
-    if res.matched_count == 0:
-        return jsonify({"error": "Order not found"}), 404
-    return jsonify({"message": "Order status updated"})
-
-@app.route('/api/marketplace/orders/<o_id>/pay', methods=['PUT'])
-@seller_or_admin_required
-def confirm_payment(o_id):
+    
     order = orders_col.find_one({"_id": ObjectId(o_id)})
     if not order:
         return jsonify({"error": "Order not found"}), 404
-    if order.get("paymentStatus") == "Paid":
-        return jsonify({"message": "Payment already confirmed"})
+        
+    order_seller_id = str(order.get('sellerId')) if order.get('sellerId') else ""
+    if role != 'admin' and order_seller_id != user_id:
+        return jsonify({"error": f"Unauthorized: {user_id} cannot manage order owned by {order_seller_id}"}), 403
+
+    update_fields = {"status": new_status}
+    if new_status == "Delivered":
+        update_fields["deliveredAt"] = datetime.utcnow().isoformat()
+        
+    orders_col.update_one(
+        {"_id": ObjectId(o_id)},
+        {
+            "$set": update_fields,
+            "$push": {"timeline": {"status": new_status, "time": datetime.utcnow().isoformat()}}
+        }
+    )
+    return jsonify({"message": "Order status updated"})
+
+@app.route('/api/marketplace/orders/<o_id>/pay', methods=['PUT'])
+@token_required
+def confirm_payment(o_id):
+    user_id = request.user_data.get('user_id')
+    role = request.user_data.get('role')
+    
+    order = orders_col.find_one({"_id": ObjectId(o_id)})
+    if not order:
+        return jsonify({"error": "Order not found"}), 404
+        
+    order_seller_id = str(order.get('sellerId')) if order.get('sellerId') else ""
+    if role != 'admin' and order_seller_id != user_id:
+        return jsonify({"error": f"Unauthorized: {user_id} cannot verify payment for order owned by {order_seller_id}"}), 403
+
     orders_col.update_one(
         {"_id": ObjectId(o_id)},
         {
@@ -1061,13 +1072,66 @@ def confirm_payment(o_id):
     )
     return jsonify({"message": "Payment confirmed"})
 
+# -------------- DIGITAL DOCUMENT VAULT --------------
+@app.route('/api/vault/upload', methods=['POST'])
+@token_required
+def upload_document():
+    user_id = request.user_data.get('user_id')
+    user_name = request.user_data.get('name')
+    society_id = request.user_data.get('societyId')
+    data = request.json
+    
+    doc = {
+        "userId": user_id,
+        "userName": user_name,
+        "societyId": society_id,
+        "documentType": data.get("documentType"),
+        "fileName": data.get("fileName"),
+        "fileData": data.get("fileData"), # Base64
+        "status": "Submitted",
+        "createdAt": datetime.utcnow().isoformat()
+    }
+    documents_col.insert_one(doc)
+    return jsonify({"message": "Document uploaded successfully"}), 201
+
+@app.route('/api/vault/my-documents', methods=['GET'])
+@token_required
+def get_my_documents():
+    user_id = request.user_data.get('user_id')
+    docs = list(documents_col.find({"userId": user_id}).sort("createdAt", -1))
+    return jsonify([format_doc(d) for d in docs])
+
+@app.route('/api/admin/vault/all', methods=['GET'])
+@admin_required
+def get_all_documents():
+    society_id = request.args.get('societyId')
+    query = {}
+    if society_id:
+        query["societyId"] = society_id
+    docs = list(documents_col.find(query).sort("createdAt", -1))
+    return jsonify([format_doc(d) for d in docs])
+
+# -------------- STAFF MANAGEMENT UPDATES --------------
+@app.route('/api/services/<s_id>', methods=['PUT', 'DELETE'])
+@admin_required
+def update_service(s_id):
+    if request.method == 'DELETE':
+        services_col.delete_one({"_id": ObjectId(s_id)})
+        return jsonify({"message": "Staff removed"})
+        
+    data = request.json
+    update_fields = {
+        "name": data.get("name"),
+        "role": data.get("role"),
+        "phone": data.get("phone")
+    }
+    services_col.update_one({"_id": ObjectId(s_id)}, {"$set": update_fields})
+    return jsonify({"message": "Staff details updated"})
+
 @app.route('/api/marketplace/orders/<o_id>/invoice', methods=['GET'])
 @token_required
 def get_invoice(o_id):
-    query = {"_id": ObjectId(o_id)}
-    if request.user_data.get('role') != 'admin':
-        query["userId"] = request.user_data.get('user_id')
-    order = orders_col.find_one(query)
+    order = orders_col.find_one({"_id": ObjectId(o_id)})
     if not order:
         return jsonify({"error": "Order not found"}), 404
     invoice = {
@@ -1089,31 +1153,22 @@ def get_invoice(o_id):
 @token_required
 def get_messages():
     society_id = request.user_data.get('societyId')
-    limit = min(parse_positive_int(request.args.get('limit'), 100), 200)
-    since = request.args.get('since')
-    query = {"societyId": society_id}
-    if since:
-        query["createdAt"] = {"$gte": since}
-    messages = list(messages_col.find(query).sort("createdAt", 1).limit(limit))
+    messages = list(messages_col.find({"societyId": society_id}).sort("createdAt", 1))
     return jsonify([format_doc(m) for m in messages])
 
 @app.route('/api/chat/messages', methods=['POST'])
 @token_required
 def send_message():
-    data = get_json_data()
-    text = (data.get("text") or "").strip()
-    if not text:
-        return jsonify({"error": "Message text required"}), 400
-
+    data = request.json
     message = {
         "societyId": request.user_data.get('societyId'),
         "userId": request.user_data.get('user_id'),
         "userName": request.user_data.get('name'),
-        "text": text,
+        "text": data.get("text"),
         "createdAt": datetime.utcnow().isoformat()
     }
     messages_col.insert_one(message)
     return jsonify({"message": "Message sent"}), 201
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+    app.run(host='0.0.0.0', debug=True, port=5000)

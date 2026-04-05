@@ -139,6 +139,18 @@
                     <p class="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Pending Complaints</p>
                     <h3 class="text-2xl font-bold text-dark" id="statComplaints">0</h3>
                 </div>
+                <div class="glass-card p-4 relative overflow-hidden group">
+                    <p class="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Today's Visitors</p>
+                    <h3 class="text-2xl font-bold text-dark" id="statVisitors">0</h3>
+                </div>
+                <div class="glass-card p-4 relative overflow-hidden group">
+                    <p class="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Total Bookings</p>
+                    <h3 class="text-2xl font-bold text-dark" id="statBookings">0</h3>
+                </div>
+                <div class="glass-card p-4 relative overflow-hidden group">
+                    <p class="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Market Revenue</p>
+                    <h3 class="text-2xl font-bold text-dark" id="statMarketRevenue">₹0</h3>
+                </div>
             </div>
 
 
@@ -200,7 +212,17 @@
                         <div class="flex items-center gap-4">
                             <div class="w-12 h-12 rounded-2xl bg-teal-50 text-teal-500 flex items-center justify-center shadow-sm"><i class="fa-solid fa-calendar-check text-xl"></i></div>
                             <div>
-                                <h3 class="text-base font-bold text-dark">Facility Bookings</h3>
+                                <h3 class="text-base font-bold text-dark">Amenity Reservations</h3>
+                            </div>
+                        </div>
+                        <i class="fa-solid fa-chevron-right text-slate-300"></i>
+                    </div>
+
+                    <div class="glass-card p-5 flex items-center justify-between cursor-pointer hover:bg-slate-50 transition active:scale-[0.98]" onclick="loadMarketplaceAdmin()">
+                        <div class="flex items-center gap-4">
+                            <div class="w-12 h-12 rounded-2xl bg-fuchsia-50 text-fuchsia-500 flex items-center justify-center shadow-sm"><i class="fa-solid fa-store text-xl"></i></div>
+                            <div>
+                                <h3 class="text-base font-bold text-dark">Marketplace Moderation</h3>
                             </div>
                         </div>
                         <i class="fa-solid fa-chevron-right text-slate-300"></i>
@@ -216,7 +238,7 @@
                         <i class="fa-solid fa-chevron-right text-slate-300"></i>
                     </div>
 
-                    <div class="glass-card p-5 flex items-center justify-between cursor-pointer hover:bg-red-50 transition border-2 border-transparent hover:border-red-100 active:scale-[0.98]" onclick="loadSOSAdmin()">
+                    <div class="glass-card p-5 flex items-center justify-between cursor-pointer hover:bg-slate-50 transition active:scale-[0.98]" onclick="loadSOSAdmin()">
                         <div class="flex items-center gap-4">
                             <div class="w-12 h-12 rounded-2xl bg-red-100 text-red-600 flex items-center justify-center shadow-sm animate-pulse"><i class="fa-solid fa-truck-medical text-xl"></i></div>
                             <div>
@@ -225,6 +247,7 @@
                         </div>
                         <i class="fa-solid fa-chevron-right text-red-300"></i>
                     </div>
+
                     <div class="glass-card p-5 flex items-center justify-between cursor-pointer hover:bg-slate-50 transition active:scale-[0.98]" onclick="loadVehiclesAdmin()">
                         <div class="flex items-center gap-4">
                             <div class="w-12 h-12 rounded-2xl bg-slate-200 text-slate-800 flex items-center justify-center shadow-sm"><i class="fa-solid fa-car text-xl"></i></div>
@@ -235,14 +258,15 @@
                         <i class="fa-solid fa-chevron-right text-slate-300"></i>
                     </div>
 
-                    <div class="glass-card p-5 flex items-center justify-between cursor-pointer hover:bg-slate-50 transition active:scale-[0.98]" onclick="loadMarketplaceAdmin()">
+                    <div class="glass-card p-5 flex items-center justify-between cursor-pointer border-2 border-indigo-100 hover:bg-indigo-50/50 transition active:scale-[0.98] shadow-lg shadow-indigo-100/20" onclick="loadVaultAdmin()">
                         <div class="flex items-center gap-4">
-                            <div class="w-12 h-12 rounded-2xl bg-pink-50 text-pink-500 flex items-center justify-center shadow-sm"><i class="fa-solid fa-cart-shopping text-xl"></i></div>
+                            <div class="w-12 h-12 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-md animate-pulse"><i class="fa-solid fa-vault text-xl"></i></div>
                             <div>
-                                <h3 class="text-base font-bold text-dark">Marketplace Orders</h3>
+                                <h3 class="text-base font-bold text-indigo-700">Digital Document Vault</h3>
+                                <p class="text-[9px] font-bold text-indigo-400 uppercase tracking-widest mt-0.5">Secure Resident Repository</p>
                             </div>
                         </div>
-                        <i class="fa-solid fa-chevron-right text-slate-300"></i>
+                        <i class="fa-solid fa-shield-halved text-indigo-300"></i>
                     </div>
                 </div>
             </main>
@@ -262,7 +286,8 @@
 
     <!-- Scripts -->
     <script>
-        const API_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' ? 'http://localhost:5000/api' : '/api';
+        const isLocal = /^(localhost|127\.0\.0\.1|192\.168\.|10\.|172\.)/.test(window.location.hostname) || window.location.hostname === "";
+        const API_URL = isLocal ? `http://${window.location.hostname || 'localhost'}:5000/api` : '/api';
         
         function getAuthHeaders() { return {'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('adminToken')}`} }
 
@@ -407,6 +432,9 @@
                     const data = await res.json();
                     document.getElementById('statCollected').innerText = '₹' + (data.dues_collected || 0).toLocaleString();
                     document.getElementById('statComplaints').innerText = data.pending_complaints || 0;
+                    document.getElementById('statVisitors').innerText = data.today_visitors || 0;
+                    document.getElementById('statBookings').innerText = data.total_bookings || 0;
+                    document.getElementById('statMarketRevenue').innerText = '₹' + (data.market_revenue || 0).toLocaleString();
                 }
             } catch(e) {}
         }
@@ -446,18 +474,19 @@
                     `;
                     
                     if(data.length === 0) html += `<p class="text-xs text-slate-500 text-center py-4">No active notices.</p>`;
-                    data.forEach(n => {
+                    window._activeNotices = data;
+                    data.forEach((n, idx) => {
                         html += `
-                        <div class="bg-slate-50 p-3 rounded-xl border border-slate-200" id="notice-${n._id}">
-                            <div class="flex justify-between items-start mb-2">
-                                <span class="text-[10px] bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded font-bold">${n.category}</span>
-                                <div class="flex gap-2">
-                                    <button onclick="editNotice('${n._id}', \`${n.title}\`, \`${n.content}\`, '${n.category}')" class="text-[10px] text-blue-500 font-bold bg-blue-50 px-2 py-1 rounded">Update</button>
-                                    <button onclick="deleteNotice('${n._id}')" class="text-[10px] text-red-500 font-bold bg-red-50 px-2 py-1 rounded">Delete</button>
-                                </div>
+                        <div class="bg-indigo-50/50 p-4 rounded-xl border border-indigo-100 flex justify-between items-start mb-3">
+                            <div>
+                                <h4 class="text-sm font-bold text-dark mb-1">${n.title}</h4>
+                                <p class="text-[11px] text-slate-500 leading-relaxed">${n.content}</p>
+                                <div class="mt-2 text-[9px] font-bold text-indigo-400 p-1 bg-white inline-block rounded border border-indigo-100">${n.category.toUpperCase()} • ${new Date(n.createdAt || n.date || Date.now()).toLocaleDateString()}</div>
                             </div>
-                            <h4 class="text-sm font-bold text-dark mt-1">${n.title}</h4>
-                            <p class="text-xs text-slate-600 mt-1">${n.content}</p>
+                            <div class="flex flex-col gap-2">
+                                <button onclick="editNotice(${idx})" class="text-indigo-400 hover:text-indigo-600 transition text-sm"><i class="fa-solid fa-pen"></i></button>
+                                <button onclick="deleteNotice('${n._id}')" class="text-red-400 hover:text-red-600 transition text-sm"><i class="fa-solid fa-trash"></i></button>
+                            </div>
                         </div>`;
                     });
                     html += `</div>`;
@@ -495,19 +524,21 @@
             `;
         }
 
-        function editNotice(id, title, content, cat) {
-            showNoticeForm(id, title, content, cat);
+        function editNotice(idx) {
+            const n = window._activeNotices[idx];
+            showNoticeForm(n._id, n.title, n.content, n.category);
+            const form = document.querySelector('form[onsubmit*="submitNotice"]');
+            form.querySelector('button[type="submit"]').innerText = "Save Updated Notice";
+            window.scrollTo({top: 0, behavior: 'smooth'});
+
         }
 
         async function deleteNotice(id) {
-            showConfirm("Delete Notice", "Are you sure you want to permanently delete this notice?", async () => {
+            showConfirm("Remove Alert?", "This notice will be removed from all resident boards. Proceed?", async () => {
                 try {
                     await fetch(`${API_URL}/notices/${id}`, { method: 'DELETE', headers: getAuthHeaders() });
-                    showToast("Notice removed successfully", "success", "Deleted");
                     loadNotices();
-                } catch(e) {
-                    showToast("Failed to delete notice", "error");
-                }
+                } catch(e) { showToast("Failed to delete", "error"); }
             });
         }
         
@@ -634,14 +665,24 @@
                                 <h4 class="text-[14px] font-bold text-dark">${b.facility}</h4>
                                 <p class="text-[10px] font-bold text-emerald-600 uppercase tracking-wide mt-0.5">🗓️ ${b.date} • ${b.slot.split('(')[0]}</p>
                             </div>
-                            <div class="text-right">
+                            <div class="text-right flex flex-col items-end gap-2">
                                 <span class="bg-slate-100 text-slate-700 font-bold px-2 py-1 rounded text-[10px] block mb-1"><i class="fa-solid fa-user"></i> ${b.userName}</span>
+                                <button onclick="cancelBookingAdmin('${b._id}')" class="text-[9px] font-bold text-red-500 bg-red-50 px-2 py-1 rounded">Cancel</button>
                             </div>
                         </div>`;
                     });
                     content.innerHTML = `<div class="space-y-1">${html}</div>`;
                 }
             } catch (err) {}
+        }
+
+        async function cancelBookingAdmin(id) {
+            showConfirm("Cancel Booking", "Are you sure you want to cancel this reservation?", async () => {
+                try {
+                    await fetch(`${API_URL}/bookings/${id}`, { method: 'DELETE', headers: getAuthHeaders() });
+                    loadBookingsAdmin();
+                } catch(e) {}
+            });
         }
 
         async function loadFinanceAdmin() {
@@ -670,18 +711,21 @@
                     dues.forEach(d => {
                         const paid = d.status === 'Paid';
                         html += `
-                        <div class="bg-white border-l-4 ${paid ? 'border-emerald-500' : 'border-amber-500'} p-3 rounded-lg shadow-sm border border-slate-100 mb-2 flex justify-between items-center">
+                        <div class="bg-slate-50 p-3 rounded-xl border border-slate-100 flex justify-between items-center mb-2">
                             <div>
                                 <h4 class="text-sm font-bold text-dark">₹${d.amount} <span class="text-[10px] text-slate-500 font-normal ml-1">Due: ${d.dueDate}</span></h4>
                                 <p class="text-[11px] font-semibold text-slate-600 mt-0.5"><i class="fa-solid fa-user text-[9px] mr-0.5"></i> ${d.userName}</p>
                             </div>
-                            <span class="text-[10px] font-bold px-2 py-1 rounded bg-slate-50 text-${paid?'emerald-600':'amber-600'}">${d.status}</span>
+                            <div class="flex items-center gap-3">
+                                <span class="text-[10px] font-bold px-2 py-1 rounded bg-white text-${paid?'emerald-600':'amber-600'} border border-slate-100">${d.status}</span>
+                            </div>
                         </div>`;
                     });
                     document.getElementById('financeList').innerHTML = html;
                 }
             } catch(e) {}
         }
+
 
         async function loadPeopleAdmin() {
             openModule("People & Services Directory");
@@ -709,26 +753,139 @@
                 const users = await usersRes.json();
                 const services = servRes.ok ? await servRes.json() : [];
 
-                let html = '<h4 class="text-xs font-bold text-slate-500 mb-2 uppercase tracking-wide">Society Members</h4>';
-                
+                let html = '<h4 class="text-[10px] font-black text-amber-600 mb-3 uppercase tracking-widest">Active Staff & Services</h4>';
                 services.forEach(s => {
                     html += `
-                        <div class="bg-amber-50/30 p-2 rounded-lg border border-amber-100 mb-1.5 flex justify-between items-center">
-                            <div class="flex items-center gap-2 text-xs text-dark font-medium"><i class="fa-solid fa-hard-hat text-amber-500 w-4"></i> ${s.name}</div>
-                            <span class="text-[9px] text-amber-600 font-bold uppercase">${s.role}</span>
+                        <div class="bg-amber-50/30 p-3 rounded-xl border border-amber-100 mb-2 flex justify-between items-center group hover:bg-amber-50/50 transition">
+                            <div class="flex items-center gap-3">
+                                <div class="w-8 h-8 rounded-lg bg-amber-100 text-amber-600 flex items-center justify-center text-sm shadow-sm"><i class="fa-solid fa-user-gear"></i></div>
+                                <div>
+                                    <h4 class="text-xs font-bold text-dark">${s.name}</h4>
+                                    <p class="text-[9px] text-amber-600 font-bold uppercase tracking-wider">${s.role} \u2022 ${s.phone}</p>
+                                </div>
+                            </div>
+                            <div class="flex gap-2">
+                                <button onclick="editStaff('${s._id}', '${s.name}', '${s.role}', '${s.phone}')" class="w-8 h-8 rounded-full bg-white text-slate-400 flex items-center justify-center hover:text-indigo-500 transition shadow-sm"><i class="fa-solid fa-pen-to-square text-[10px]"></i></button>
+                                <button onclick="deleteStaff('${s._id}')" class="w-8 h-8 rounded-full bg-white text-slate-400 flex items-center justify-center hover:text-red-500 transition shadow-sm"><i class="fa-solid fa-trash-can text-[10px]"></i></button>
+                            </div>
                         </div>`;
                 });
+
+                html += '<h4 class="text-[10px] font-black text-slate-400 mt-6 mb-3 uppercase tracking-widest">Resident Directory</h4>';
                 users.forEach(u => {
                     html += `
-                        <div class="bg-white p-2 text-xs rounded-lg border border-slate-100 mb-1.5 flex justify-between items-center">
-                            <div class="flex items-center gap-2 text-slate-700 font-medium"><i class="fa-solid fa-user text-slate-400 w-4"></i> ${u.name}</div>
-                            <span class="text-[9px] text-slate-500 uppercase">${u.role}</span>
+                        <div class="bg-white p-3 rounded-xl border border-slate-100 mb-2 flex justify-between items-center group hover:bg-slate-50 transition shadow-sm">
+                            <div class="flex items-center gap-3">
+                                <div class="w-8 h-8 rounded-lg bg-slate-50 text-slate-400 flex items-center justify-center text-sm"><i class="fa-solid fa-house-user"></i></div>
+                                <div>
+                                    <h4 class="text-xs font-bold text-dark">${u.name}</h4>
+                                    <p class="text-[9px] text-slate-400 font-bold uppercase tracking-wider">${u.email}</p>
+                                </div>
+                            </div>
+                            <div class="flex gap-2">
+                                <button onclick="viewResidentDetails('${u.name}', '${u.email}', '${u.role}')" class="w-7 h-7 rounded-full bg-slate-50 text-slate-400 flex items-center justify-center hover:text-primary transition shadow-sm border border-slate-100"><i class="fa-solid fa-circle-info text-[9px]"></i></button>
+                                <button onclick="deleteResident('${u._id}')" class="w-7 h-7 rounded-full bg-slate-50 text-slate-400 flex items-center justify-center hover:text-red-500 transition shadow-sm border border-slate-100"><i class="fa-solid fa-user-minus text-[9px]"></i></button>
+                            </div>
                         </div>`;
                 });
-                if(users.length === 0 && services.length === 0) html += `<p class="text-xs text-slate-400">No records found.</p>`;
+                if(users.length === 0 && services.length === 0) html += `<p class="text-xs text-slate-400 text-center py-6 opacity-40 italic">Society is empty. Awaiting registrations.</p>`;
                 
                 document.getElementById('peopleList').innerHTML = html;
             } catch(e) {}
+        }
+        
+        async function deleteResident(id) {
+            showConfirm("Eject Resident?", "This will immediately remove this user from the society portal directory. Their data will be archived.", async () => {
+                await fetch(`${API_URL}/users/${id}`, { method: 'DELETE', headers: getAuthHeaders() });
+                loadPeopleAdmin();
+            });
+        }
+
+        async function editStaff(id, name, role, phone) {
+            document.getElementById('sName').value = name;
+            document.getElementById('sRole').value = role;
+            document.getElementById('sPhone').value = phone;
+            const form = document.querySelector('form[onsubmit="postService(event)"]');
+            form.setAttribute('onsubmit', `updateService(event, '${id}')`);
+            form.querySelector('button').innerText = "Update Staff Member";
+            form.querySelector('button').classList.replace('bg-amber-500', 'bg-indigo-600');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        async function updateService(e, id) {
+            e.preventDefault();
+            const sid = document.getElementById('adminSocietySelect').value;
+            const payload = {
+                societyId: sid,
+                name: document.getElementById('sName').value,
+                role: document.getElementById('sRole').value,
+                phone: document.getElementById('sPhone').value
+            };
+            try {
+                const res = await fetch(`${API_URL}/services/${id}`, { 
+                    method: 'PUT', 
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify(payload)
+                });
+                if(res.ok) {
+                    showToast("Staff updated successfully", "success", "Updated");
+                    loadPeopleAdmin();
+                }
+            } catch(e) {}
+        }
+
+        async function deleteStaff(id) {
+            showConfirm("Remove Staff", "Are you sure you want to remove this staff member?", async () => {
+                await fetch(`${API_URL}/services/${id}`, { method: 'DELETE', headers: getAuthHeaders() });
+                showToast("Staff member removed", "success", "Deleted");
+                loadPeopleAdmin();
+            });
+        }
+
+        function viewResidentDetails(name, email, role) {
+            showToast(`Registered Resident`, `${name} (${email}) - ${role}`, "success", "Info");
+        }
+
+        async function loadVaultAdmin() {
+            openModule("Digital Document Vault");
+            const content = document.getElementById('moduleContent');
+            const sid = document.getElementById('adminSocietySelect').value;
+            const query = sid ? `?societyId=${sid}` : '';
+
+            content.innerHTML = '<div class="text-center py-10"><i class="fa-solid fa-circle-notch fa-spin text-primary text-2xl"></i><p class="text-xs text-slate-400 mt-2 font-bold uppercase tracking-widest">Accessing Secure Vault...</p></div>';
+
+            try {
+                const res = await fetch(`${API_URL}/admin/vault/all${query}`, { headers: getAuthHeaders() });
+                const docs = await res.json();
+                
+                let html = '<div class="space-y-3">';
+                if(docs.length === 0) html += '<p class="text-xs text-slate-400 text-center py-10 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-100">No resident documents submitted yet.</p>';
+                
+                docs.forEach(d => {
+                    html += `
+                        <div class="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex justify-between items-center group hover:bg-slate-50 transition border-l-4 border-l-indigo-500">
+                            <div class="flex items-center gap-4">
+                                <div class="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-500 flex items-center justify-center text-xl"><i class="fa-solid fa-file-shield"></i></div>
+                                <div>
+                                    <h4 class="text-[12px] font-black text-dark tracking-tight leading-none mb-1">${d.documentType}</h4>
+                                    <p class="text-[10px] text-slate-500 font-medium">Resident: <span class="font-bold text-primary">${d.userName}</span></p>
+                                    <p class="text-[8px] text-slate-400 mt-1 font-bold uppercase tracking-widest px-2 py-0.5 bg-slate-50 rounded-md inline-block border border-slate-100">${new Date(d.createdAt).toLocaleDateString()} \u2022 ${d.fileName}</p>
+                                </div>
+                            </div>
+                            <button onclick="viewVaultDoc('${d.fileData}')" class="w-10 h-10 rounded-full bg-slate-50 text-slate-400 flex items-center justify-center hover:bg-primary hover:text-white transition shadow-sm"><i class="fa-solid fa-eye"></i></button>
+                        </div>
+                    `;
+                });
+                html += '</div>';
+                content.innerHTML = html;
+            } catch(err) {
+                content.innerHTML = '<p class="text-center text-xs text-red-500 font-bold">Failed to load vault.</p>';
+            }
+        }
+
+        function viewVaultDoc(data) {
+            const win = window.open();
+            win.document.write('<iframe src="' + data + '" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>');
         }
 
         async function postSociety(e) {
@@ -810,14 +967,21 @@
             try {
                 const res = await fetch(`${API_URL}/polls${sid ? `?societyId=${sid}` : ''}`, { headers: getAuthHeaders() });
                 const polls = await res.json();
+                window._activePolls = polls; // Store globally
                 let listHtml = '<h4 class="text-xs font-bold text-slate-500 mb-2 uppercase tracking-wide">Active & Past Polls</h4>';
                 if(polls.length === 0) listHtml += `<p class="text-xs text-slate-400">No polls created yet.</p>`;
                 
-                polls.forEach(p => {
+                polls.forEach((p, idx) => {
                     const totalVotes = p.options.reduce((acc, opt) => acc + opt.votes, 0);
                     listHtml += `
                         <div class="bg-white border border-slate-100 p-4 rounded-xl shadow-sm">
-                            <h4 class="text-sm font-bold text-dark mb-3">${p.question}</h4>
+                            <div class="flex justify-between items-start mb-3">
+                                <h4 class="text-sm font-bold text-dark">${p.question}</h4>
+                                <div class="flex gap-2">
+                                    <button onclick="editPoll(${idx})" class="text-[10px] text-blue-500 font-bold bg-blue-50 px-2 py-1 rounded">Edit</button>
+                                    <button onclick="deletePoll('${p._id}')" class="text-[10px] text-red-500 font-bold bg-red-50 px-2 py-1 rounded">Delete</button>
+                                </div>
+                            </div>
                             <div class="space-y-2">
                                 ${p.options.map(opt => {
                                     const percent = totalVotes > 0 ? Math.round((opt.votes / totalVotes) * 100) : 0;
@@ -861,8 +1025,10 @@
             const options = Array.from(document.querySelectorAll('.poll-opt')).map(i => i.value).filter(v => v.trim() !== '');
             
             try {
-                const res = await fetch(`${API_URL}/polls`, {
-                    method: 'POST', headers: getAuthHeaders(),
+                const url = e.target.dataset.id ? `${API_URL}/polls/${e.target.dataset.id}` : `${API_URL}/polls`;
+                const method = e.target.dataset.id ? 'PUT' : 'POST';
+                const res = await fetch(url, {
+                    method: method, headers: getAuthHeaders(),
                     body: JSON.stringify({ 
                         societyId: sid, 
                         question: document.getElementById('pollQuestion').value,
@@ -870,10 +1036,38 @@
                     })
                 });
                 if(res.ok) {
-                    showToast("Community poll is now live!", "success", "Poll Deployed");
+                    showToast(e.target.dataset.id ? "Poll updated!" : "Community poll is now live!", "success", "Poll Deployed");
                     loadPollsAdmin();
                 }
             } catch(e) { btn.innerText = og; }
+        }
+
+        function editPoll(idx) {
+            const p = window._activePolls[idx];
+            const form = document.querySelector('form[onsubmit="postPoll(event)"]');
+            form.dataset.id = p._id;
+            document.getElementById('pollQuestion').value = p.question;
+            const container = document.getElementById('pollOptionsContainer');
+            container.innerHTML = '';
+            p.options.forEach((opt, idx) => {
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.placeholder = `Option ${idx + 1}`;
+                input.value = opt.text;
+                input.required = true;
+                input.className = 'poll-opt w-full text-sm bg-white border border-indigo-200 rounded-lg px-3 py-2';
+                container.appendChild(input);
+            });
+            form.querySelector('button[type="submit"]').innerText = "Update Poll & Reset Votes";
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        async function deletePoll(id) {
+            showConfirm("Delete Poll", "Are you sure? This will remove all results.", async () => {
+                await fetch(`${API_URL}/polls/${id}`, { method: 'DELETE', headers: getAuthHeaders() });
+                showToast("Poll removed", "success");
+                loadPollsAdmin();
+            });
         }
 
         async function loadSOSAdmin() {
@@ -884,10 +1078,11 @@
             content.innerHTML = `
                 <div class="bg-red-50 p-4 border border-red-100 rounded-xl mb-4 flex items-center gap-4">
                     <div class="w-12 h-12 bg-white rounded-full flex items-center justify-center text-red-500 text-2xl animate-pulse shadow-sm"><i class="fa-solid fa-bell"></i></div>
-                    <div>
+                    <div class="flex-1">
                         <h4 class="text-sm font-bold text-red-700">Live SOS Feed</h4>
-                        <p class="text-[10px] text-red-600 font-medium tracking-tight">Active emergencies requiring immediate verification.</p>
+                        <p class="text-[10px] text-red-600 font-medium opacity-80 uppercase tracking-widest mt-1">Real-time Emergency Monitoring</p>
                     </div>
+                    <div class="bg-white/50 px-2.5 py-1 rounded-lg border border-red-200 text-[10px] font-black text-red-600 animate-pulse">LIVE</div>
                 </div>
                 <div id="sosListAdmin" class="space-y-3">
                     <div class="text-center py-4"><i class="fa-solid fa-spinner fa-spin text-red-500"></i></div>
@@ -898,23 +1093,184 @@
                 const res = await fetch(`${API_URL}/sos${sid ? `?societyId=${sid}` : ''}`, { headers: getAuthHeaders() });
                 const alerts = await res.json();
                 let html = '';
-                if(alerts.length === 0) html = `<p class="text-xs text-slate-500 text-center py-10 bg-slate-100 rounded-2xl border-2 border-dashed border-slate-200">No active SOS alerts found. The society is safe.</p>`;
-                
-                alerts.forEach(a => {
-                    html += `
-                        <div class="bg-white border-2 border-red-200 p-4 rounded-xl shadow-lg relative overflow-hidden">
-                            <div class="absolute top-0 right-0 bg-red-500 text-white text-[8px] font-black px-3 py-1 rounded-bl-lg uppercase tracking-widest">Urgent</div>
-                            <h4 class="text-base font-bold text-dark flex items-center gap-2"><i class="fa-solid fa-user-circle text-red-500"></i> ${a.userName}</h4>
-                            <p class="text-xs text-slate-500 mt-1 font-bold"><i class="fa-solid fa-location-dot"></i> ${a.location}</p>
-                            <div class="mt-4 flex gap-2">
-                                <button onclick="resolveSOS('${a._id}')" class="flex-1 bg-emerald-500 text-white font-bold py-2 rounded-lg text-xs shadow-sm hover:bg-emerald-600 transition">Mark as Resolved</button>
-                                <a href="tel:911" class="w-10 h-10 bg-slate-900 text-white rounded-lg flex items-center justify-center shadow-lg"><i class="fa-solid fa-phone"></i></a>
+                if(alerts.length === 0) {
+                    html += '<p class="text-xs text-slate-400 text-center py-10 opacity-30 italic">No active distress signals in the society.</p>';
+                } else {
+                    alerts.forEach(a => {
+                        const resolved = a.status === 'Resolved';
+                        html += `
+                            <div class="bg-white border-2 ${resolved ? 'border-slate-100 opacity-60' : 'border-red-100 animate-pulse shadow-sm shadow-red-100'} p-4 rounded-2xl mb-3 flex items-start justify-between">
+                                <div class="flex-1">
+                                    <div class="flex items-center gap-2 mb-2">
+                                        <span class="text-[10px] bg-red-600 text-white px-2 py-0.5 rounded font-black tracking-widest uppercase">${a.type || 'SOS'}</span>
+                                        <span class="text-[10px] text-slate-400 font-bold">${new Date(a.createdAt).toLocaleTimeString()}</span>
+                                    </div>
+                                    <h4 class="text-sm font-bold text-dark mb-0.5">${a.userName} • Flat ${a.flatNumber || 'N/A'}</h4>
+                                    <p class="text-xs text-slate-500">${a.location || 'Reported from Resident App'}</p>
+                                </div>
+                                ${!resolved ? `<button onclick="resolveSOS('${a._id}')" class="text-[9px] font-black text-white bg-red-600 px-3 py-1.5 rounded-lg active:scale-95 transition shadow-sm uppercase tracking-wider">Respond Now</button>` : `<span class="text-[9px] font-bold text-emerald-500 bg-emerald-50 px-2 py-1 rounded">RESOLVED</span>`}
                             </div>
-                        </div>
-                    `;
-                });
+                        `;
+                    });
+                }
                 document.getElementById('sosListAdmin').innerHTML = html;
             } catch(e) {}
+        }
+
+        async function resolveSOS(id) {
+            showConfirm("SOS Incident Resolved?", "Has the emergency situation been stabilized? This will archive the alert.", async () => {
+                const res = await fetch(`${API_URL}/sos/${id}/resolve`, { method: 'PUT', headers: getAuthHeaders() });
+                if(res.ok) {
+                    showToast("Emergency signal cleared.", "success", "Resolved");
+                    loadSOSAdmin();
+                }
+            });
+        }
+
+        async function loadMarketplaceAdmin() {
+            openModule("Marketplace Performance");
+            const content = document.getElementById('moduleContent');
+            const sid = document.getElementById('adminSocietySelect').value;
+
+            try {
+                const [pRes, oRes] = await Promise.all([
+                    fetch(`${API_URL}/marketplace/seller/products${sid ? `?societyId=${sid}` : ''}`, { headers: getAuthHeaders() }),
+                    fetch(`${API_URL}/marketplace/seller/orders${sid ? `?societyId=${sid}` : ''}`, { headers: getAuthHeaders() })
+                ]);
+                const products = await pRes.json();
+                const orders = await oRes.json();
+                
+                const totalRevenue = orders.reduce((acc, o) => acc + (o.price || 0), 0);
+                const collectedRevenue = orders.filter(o => o.paymentStatus === 'Paid').reduce((acc, o) => acc + (o.price || 0), 0);
+                const pendingRevenue = orders.filter(o => o.paymentStatus !== 'Paid').reduce((acc, o) => acc + (o.price || 0), 0);
+                const totalProducts = products.length;
+
+                const catStats = {};
+                orders.forEach(o => {
+                    if(o.paymentStatus === 'Paid') {
+                        catStats[o.category || 'General'] = (catStats[o.category || 'General'] || 0) + (o.price || 0);
+                    }
+                });
+
+                let html = `
+                    <div class="grid grid-cols-2 gap-4 mb-8">
+                        <div class="glass-card p-5 bg-gradient-to-br from-slate-900 to-slate-800 text-white shadow-xl group">
+                            <p class="text-[9px] font-black uppercase tracking-widest text-slate-400 group-hover:text-primary transition-colors">Total Possible Revenue</p>
+                            <h4 class="text-2xl font-black mt-1">\u20b9${totalRevenue.toLocaleString()}</h4>
+                            <div class="mt-3 flex items-center gap-2">
+                                <span class="w-2 h-2 rounded-full bg-slate-500 animate-pulse"></span>
+                                <span class="text-[8px] font-bold text-slate-500 uppercase tracking-widest">Global Aggregate</span>
+                            </div>
+                        </div>
+                        <div class="glass-card p-5 bg-emerald-500 text-white shadow-lg shadow-emerald-500/20 group">
+                            <p class="text-[9px] font-black uppercase tracking-widest text-emerald-100/60">Revenue Collected</p>
+                            <h4 class="text-2xl font-black mt-1">\u20b9${collectedRevenue.toLocaleString()}</h4>
+                            <div class="mt-3 flex items-center gap-2">
+                                <i class="fa-solid fa-circle-check text-[10px] text-emerald-100"></i>
+                                <span class="text-[8px] font-bold text-emerald-100 uppercase tracking-widest">Finalized Cash</span>
+                            </div>
+                        </div>
+                        <div class="glass-card p-5 border-amber-100 bg-white shadow-sm flex flex-col justify-between">
+                            <div>
+                                <p class="text-[9px] font-black uppercase tracking-widest text-slate-400">Invoiced Pending</p>
+                                <h4 class="text-2xl font-black mt-1 text-amber-500">\u20b9${pendingRevenue.toLocaleString()}</h4>
+                            </div>
+                            <p class="text-[8px] font-bold text-slate-400 mt-3 uppercase tracking-widest italic leading-tight">Waiting for seller confirmation</p>
+                        </div>
+                        <div class="glass-card p-5 border-indigo-100 bg-white shadow-sm flex flex-col justify-between">
+                            <div>
+                                <p class="text-[9px] font-black uppercase tracking-widest text-slate-400">Unique Products</p>
+                                <h4 class="text-2xl font-black mt-1 text-indigo-600">${totalProducts}</h4>
+                            </div>
+                            <div class="flex items-center gap-2 mt-3">
+                                <span class="text-[8px] font-bold text-indigo-400 uppercase tracking-widest">Active Listings</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white p-6 rounded-[2.5rem] border border-slate-100 mb-8 shadow-sm">
+                        <h4 class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-6 flex items-center gap-2"><i class="fa-solid fa-chart-pie text-indigo-500"></i> Category Sales Distribution</h4>
+                        <div class="space-y-5">
+                            ${Object.entries(catStats).sort((a,b) => b[1] - a[1]).map(([cat, rev]) => {
+                                const percent = collectedRevenue > 0 ? Math.round((rev / collectedRevenue) * 100) : 0;
+                                return `
+                                    <div class="group">
+                                        <div class="flex justify-between items-center mb-2 px-1 text-slate-700">
+                                            <span class="text-[10px] font-black uppercase tracking-tighter">${cat}</span>
+                                            <span class="text-[10px] font-black text-slate-900">\u20b9${rev.toLocaleString()} <span class="text-slate-300 ml-1">(${percent}%)</span></span>
+                                        </div>
+                                        <div class="w-full h-2.5 bg-slate-50 rounded-full overflow-hidden border border-slate-100">
+                                            <div class="h-full bg-slate-900 transition-all duration-1000 group-hover:bg-primary" style="width: ${percent}%"></div>
+                                        </div>
+                                    </div>
+                                `;
+                            }).join('') || '<p class="text-[10px] text-slate-400 text-center py-4 italic font-bold uppercase tracking-widest opacity-40">No confirmed revenue distribution available yet.</p>'}
+                        </div>
+                    </div>
+                `;
+
+                html += '<h4 class="text-xs font-black text-slate-400 mb-3 uppercase tracking-widest flex items-center gap-2 px-1"><i class="fa-solid fa-clock-rotate-left"></i> Recent Transactions</h4>';
+                if(orders.length === 0) {
+                    html += '<p class="text-xs text-slate-400 text-center py-10 opacity-50">No marketplace traffic detected.</p>';
+                } else {
+                    html += `<div class="space-y-2 mb-8">`;
+                    orders.slice(0, 5).forEach(o => {
+                        let color = o.status === 'Delivered' ? 'text-emerald-500 bg-emerald-50 border-emerald-100' : 'text-indigo-500 bg-indigo-50 border-indigo-100';
+                        html += `
+                            <div class="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex items-center justify-between group hover:border-primary/20 transition">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center font-bold text-[10px] text-slate-400 border border-slate-100 overflow-hidden shadow-sm">
+                                        <img src="${o.productImage || 'https://img.icons8.com/color/96/box--v1.png'}" class="w-full h-full object-cover">
+                                    </div>
+                                    <div>
+                                        <h4 class="text-xs font-bold text-dark">${o.productName}</h4>
+                                        <p class="text-[9px] text-slate-400 font-bold uppercase tracking-wider">${o.userName}</p>
+                                    </div>
+                                </div>
+                                <div class="text-right">
+                                    <p class="text-xs font-black text-dark">\u20b9${o.price}</p>
+                                    <span class="text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded border ${color}">${o.status}</span>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    html += `</div>`;
+                }
+
+                html += '<h4 class="text-xs font-black text-slate-400 mb-3 mt-8 uppercase tracking-widest flex items-center gap-2 px-1"><i class="fa-solid fa-shield-halved"></i> Global Product Scrutiny</h4>';
+                if(products.length === 0) {
+                    html += '<p class="text-xs text-slate-400 text-center py-6 italic opacity-50">No active product listings in the registry.</p>';
+                } else {
+                    html += `<div class="space-y-2">`;
+                    products.forEach(p => {
+                        if(p.status === 'Deleted') return;
+                        html += `
+                            <div class="bg-white p-3 rounded-2xl border border-slate-100 shadow-sm flex items-center justify-between group hover:border-red-100 transition">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-10 h-10 rounded-xl bg-slate-50 overflow-hidden">
+                                        ${p.image ? `<img src="${p.image}" class="w-full h-full object-cover">` : '<div class="w-full h-full flex items-center justify-center text-slate-200"><i class="fa-solid fa-image"></i></div>'}
+                                    </div>
+                                    <div>
+                                        <h4 class="text-xs font-bold text-dark">${p.name}</h4>
+                                        <p class="text-[9px] text-fuchsia-500 font-black uppercase tracking-widest">\u20b9${p.price}</p>
+                                    </div>
+                                </div>
+                                <button onclick="deleteProductAdmin('${p._id}')" class="w-8 h-8 rounded-full bg-slate-50 text-slate-300 hover:text-red-500 hover:bg-red-50 transition border border-slate-100 flex items-center justify-center"><i class="fa-solid fa-trash-can text-xs"></i></button>
+                            </div>
+                        `;
+                    });
+                    html += `</div>`;
+                }
+
+                content.innerHTML = html;
+            } catch(e) {}
+        }
+
+        async function deleteProductAdmin(id) {
+            showConfirm("Remove Listing?", "As Admin, you are removing this product from the marketplace. This will permanently delete the entry. Proceed?", async () => {
+                await fetch(`${API_URL}/marketplace/products/${id}`, { method: 'DELETE', headers: getAuthHeaders() });
+                loadMarketplaceAdmin();
+            });
         }
 
         async function loadVehiclesAdmin() {
@@ -925,12 +1281,15 @@
             try {
                 const res = await fetch(`${API_URL}/vehicles${sid ? `?societyId=${sid}` : ''}`, { headers: getAuthHeaders() });
                 const vehicles = await res.json();
-                let html = '<h4 class="text-xs font-bold text-slate-500 mb-3 uppercase tracking-wide">Registered Resident Vehicles</h4>';
+                window._activeVehicles = vehicles;
+                let html = `
+                    <div id="vehicleFormContainer" class="hidden mb-4 p-4 border border-slate-200 rounded-xl bg-slate-50"></div>
+                    <h4 class="text-xs font-bold text-slate-500 mb-3 uppercase tracking-wide">Registered Resident Vehicles</h4>`;
                 
                 if(vehicles.length === 0) {
                     html += '<p class="text-xs text-slate-400 text-center py-10">No vehicles registered in the selected scope.</p>';
                 } else {
-                    vehicles.forEach(v => {
+                    vehicles.forEach((v, idx) => {
                         const icon = v.vehicleType === 'Bike' ? 'fa-motorcycle' : 'fa-car';
                         html += `
                             <div class="bg-white p-3 rounded-xl border border-slate-100 shadow-sm flex items-center justify-between mb-2">
@@ -941,9 +1300,15 @@
                                         <p class="text-[10px] text-primary font-bold"><i class="fa-solid fa-user"></i> ${v.userName}</p>
                                     </div>
                                 </div>
-                                <div class="text-right flex flex-col items-end gap-1">
-                                    <span class="text-[9px] font-black text-slate-500 uppercase tracking-widest">${v.model}</span>
-                                    <span class="text-[10px] bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded font-bold">${v.parkingSlot || 'NO SLOT'}</span>
+                                <div class="text-right flex items-center gap-4">
+                                    <div class="flex flex-col items-end">
+                                        <span class="text-[9px] font-black text-slate-500 uppercase tracking-widest">${v.model}</span>
+                                        <span class="text-[10px] bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded font-bold">${v.parkingSlot || 'NO SLOT'}</span>
+                                    </div>
+                                    <div class="flex gap-2">
+                                        <button onclick="editVehicle(${idx})" class="text-blue-500 hover:text-blue-700"><i class="fa-solid fa-pen"></i></button>
+                                        <button onclick="deleteVehicle('${v._id}')" class="text-red-500 hover:text-red-700"><i class="fa-solid fa-trash"></i></button>
+                                    </div>
                                 </div>
                             </div>
                         `;
@@ -953,15 +1318,50 @@
             } catch(e) {}
         }
 
-        async function resolveSOS(id) {
-            try {
-                const res = await fetch(`${API_URL}/sos/${id}/resolve`, { method: 'PUT', headers: getAuthHeaders() });
-                if(res.ok) {
-                    showToast("Emergency signal cleared.", "success", "Resolved");
-                    loadSOSAdmin();
-                }
-            } catch(e) {}
+        function editVehicle(idx) {
+            const v = window._activeVehicles[idx];
+            const ctn = document.getElementById('vehicleFormContainer');
+            ctn.classList.remove('hidden');
+            ctn.innerHTML = `
+                <h4 class="text-xs font-bold text-dark mb-3">Update Vehicle: ${v.vehicleNumber}</h4>
+                <form onsubmit="submitVehicleUpdate(event, '${v._id}')" class="space-y-3">
+                    <input id="vNum" type="text" value="${v.vehicleNumber}" placeholder="Number Plate" required class="w-full text-sm bg-white border border-slate-200 rounded-lg px-3 py-2">
+                    <select id="vType" class="w-full text-sm bg-white border border-slate-200 rounded-lg px-3 py-2">
+                        <option value="Car" ${v.vehicleType==='Car'?'selected':''}>Car</option>
+                        <option value="Bike" ${v.vehicleType==='Bike'?'selected':''}>Bike</option>
+                    </select>
+                    <input id="vModel" type="text" value="${v.model}" placeholder="Model (e.g. BMW X5)" required class="w-full text-sm bg-white border border-slate-200 rounded-lg px-3 py-2">
+                    <input id="vSlot" type="text" value="${v.parkingSlot}" placeholder="Parking Slot" class="w-full text-sm bg-white border border-slate-200 rounded-lg px-3 py-2">
+                    <div class="flex gap-2">
+                        <button type="submit" class="flex-1 bg-primary text-white font-bold py-2 rounded-lg text-sm">Update Registry</button>
+                        <button type="button" onclick="document.getElementById('vehicleFormContainer').classList.add('hidden')" class="bg-slate-200 text-slate-700 font-bold py-2 px-4 rounded-lg text-sm">Cancel</button>
+                    </div>
+                </form>
+            `;
+            window.scrollTo({ top: 0, behavior: 'smooth' });
         }
+
+        async function submitVehicleUpdate(e, id) {
+            e.preventDefault();
+            const payload = {
+                vehicleNumber: document.getElementById('vNum').value,
+                vehicleType: document.getElementById('vType').value,
+                model: document.getElementById('vModel').value,
+                parkingSlot: document.getElementById('vSlot').value
+            };
+            await fetch(`${API_URL}/vehicles/${id}`, { method: 'PUT', headers: getAuthHeaders(), body: JSON.stringify(payload) });
+            showToast("Vehicle updated", "success");
+            loadVehiclesAdmin();
+        }
+
+        async function deleteVehicle(id) {
+            showConfirm("Remove Vehicle", "Permanently remove this vehicle from registry?", async () => {
+                await fetch(`${API_URL}/vehicles/${id}`, { method: 'DELETE', headers: getAuthHeaders() });
+                showToast("Vehicle removed", "success");
+                loadVehiclesAdmin();
+            });
+        }
+
 
         async function postService(e) {
             e.preventDefault();
@@ -994,58 +1394,6 @@
                 showToast("Network error publishing service.", "error");
                 btn.innerText = og;
             }
-        }
-        async function loadMarketplaceAdmin() {
-            openModule("Marketplace Activity");
-            const content = document.getElementById('moduleContent');
-
-            try {
-                const [pRes, oRes] = await Promise.all([
-                    fetch(`${API_URL}/marketplace/seller/products`, {headers: getAuthHeaders()}),
-                    fetch(`${API_URL}/marketplace/seller/orders`, {headers: getAuthHeaders()})
-                ]);
-                const products = await pRes.json();
-                const orders = await oRes.json();
-                
-                let html = '<h4 class="text-xs font-bold text-slate-500 mb-3 uppercase tracking-wide">Listed Products</h4>';
-                if(products.length === 0) {
-                    html += '<p class="text-xs text-slate-400 text-center py-4">No products listed yet.</p>';
-                } else {
-                    products.forEach(p => {
-                        html += `
-                            <div class="bg-white p-3 rounded-xl border border-slate-100 shadow-sm flex items-center justify-between mb-2">
-                                <div class="flex items-center gap-3">
-                                    <img src="${p.image}" class="w-10 h-10 rounded-lg">
-                                    <div>
-                                        <h4 class="text-sm font-bold text-dark">${p.name}</h4>
-                                        <p class="text-[10px] text-slate-500">${p.description || ''}</p>
-                                    </div>
-                                </div>
-                                <span class="text-sm font-bold text-primary">\u20b9${p.price}</span>
-                            </div>
-                        `;
-                    });
-                }
-
-                html += '<h4 class="text-xs font-bold text-slate-500 mb-3 mt-6 uppercase tracking-wide">All Orders</h4>';
-                if(orders.length === 0) {
-                    html += '<p class="text-xs text-slate-400 text-center py-4">No orders placed yet.</p>';
-                } else {
-                    orders.forEach(o => {
-                        let color = o.status === 'Delivered' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700';
-                        html += `
-                            <div class="bg-white p-3 rounded-xl border border-slate-100 shadow-sm flex items-center justify-between mb-2">
-                                <div>
-                                    <h4 class="text-sm font-bold text-dark">${o.productName}</h4>
-                                    <p class="text-[10px] text-slate-500"><i class="fa-solid fa-user"></i> ${o.userName} \u2022 ${new Date(o.createdAt).toLocaleDateString()}</p>
-                                </div>
-                                <span class="text-[9px] font-bold px-2 py-0.5 rounded ${color}">${o.status}</span>
-                            </div>
-                        `;
-                    });
-                }
-                content.innerHTML = `<div class="space-y-1">${html}</div>`;
-            } catch(e) {}
         }
     </script>
 </body>
